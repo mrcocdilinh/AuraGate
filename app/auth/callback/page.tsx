@@ -32,6 +32,13 @@ export default function GoogleCallbackPage() {
       setTimeout(() => finish("/"), 2500);
     };
 
+    // Like fail() but keeps the message on screen (no auto-redirect) so the
+    // user can read a detailed wallet-setup error and report it.
+    const failPersist = (msg: string) => {
+      setPhase("error");
+      setMessage(msg);
+    };
+
     let pending: { deviceToken: string; deviceEncryptionKey: string; returnPath: string };
     try {
       const raw = sessionStorage.getItem(PENDING_GOOGLE_KEY);
@@ -83,10 +90,18 @@ export default function GoogleCallbackPage() {
             setPhase("creating");
             setMessage("Setting up your Arc wallet…");
 
-            const address = await ensureWalletAddress(
+            const { address, error: walletError } = await ensureWalletAddress(
               result.userToken,
-              result.encryptionKey
+              result.encryptionKey,
+              (msg) => setMessage(msg)
             );
+
+            if (!address && walletError) {
+              // Surface the exact failure so it's diagnosable without the console.
+              failPersist(`Wallet setup failed — ${walletError}`);
+              return;
+            }
+
             saveWallet({
               status: "connected",
               address: address ?? demoAddress(stableSeed),

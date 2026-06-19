@@ -138,10 +138,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             });
             return;
           }
-          const address = await ensureWalletAddress(
+          const { address, error: walletError } = await ensureWalletAddress(
             result.userToken,
             result.encryptionKey
           );
+          if (!address && walletError) {
+            setState({
+              status: "disconnected",
+              demo: false,
+              error: `Wallet setup failed — ${walletError}`,
+            });
+            return;
+          }
           persist({
             status: "connected",
             address: address ?? demoAddress(email),

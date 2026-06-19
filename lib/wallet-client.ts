@@ -129,6 +129,12 @@ async function executeChallenge(
   });
 }
 
+export interface EnsureWalletResult {
+  address: string | null;
+  /** Human-readable reason when address is null (shown on-screen for diagnosis). */
+  error?: string;
+}
+
 /**
  * After a successful login, ensure the user has an Arc wallet and return its
  * address. For new users on a PIN-based Circle App, this triggers the PIN
@@ -137,16 +143,25 @@ async function executeChallenge(
  * @param userToken      Circle user token from the login result.
  * @param encryptionKey  SocialLoginResult/EmailLoginResult `encryptionKey`
  *                       (NOT deviceEncryptionKey). Required to run challenges.
+ * @param onProgress     Optional callback for live status (surfaced in the UI).
  */
 export async function ensureWalletAddress(
   userToken: string,
-  encryptionKey: string
-): Promise<string | null> {
+  encryptionKey: string,
+  onProgress?: (msg: string) => void
+): Promise<EnsureWalletResult> {
+  const progress = (m: string) => {
+    console.log("[ensureWalletAddress]", m);
+    onProgress?.(m);
+  };
+
   // Returning user — wallet already exists.
+  progress("Checking for existing wallet…");
   const existing = await fetchAddress(userToken);
-  if (existing) return existing;
+  if (existing) return { address: existing };
 
   // New user — try to create the wallet directly.
+  progress("Creating your Arc wallet…");
   const init = await fetch("/api/wallet/create-wallet", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -159,14 +174,13 @@ export async function ensureWalletAddress(
   // init-pin's createUserPinWithWallets sets the PIN AND creates the wallet
   // in a single challenge.
   if (init?.error) {
-    const needsPin = (init.detail as string | undefined)
-      ?.toLowerCase()
-      .includes("pin");
+    const detail = (init.detail as string | undefined) ?? "";
+    const needsPin = detail.toLowerCase().includes("pin");
     if (!needsPin) {
-      console.error("[ensureWalletAddress] createWallet failed:", init.error, init.detail ?? "");
-      return null;
+      return { address: null, error: `create-wallet: ${init.error} ${detail}` };
     }
 
+    progress("Preparing PIN setup…");
     const pinInit = await fetch("/api/wallet/init-pin", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -176,31 +190,40 @@ export async function ensureWalletAddress(
       .catch(() => null);
 
     if (!pinInit?.challengeId) {
-      console.error("[ensureWalletAddress] init-pin failed:", pinInit);
-      return null;
+      return {
+        address: null,
+        error: `init-pin failed: ${pinInit?.detail ?? pinInit?.error ?? "no challengeId"}`,
+      };
     }
 
+    progress("Opening PIN setup — enter a 6-digit PIN…");
     try {
       await executeChallenge(pinInit.challengeId, userToken, encryptionKey);
     } catch (e) {
-      console.error("[ensureWalletAddress] PIN setup failed:", e);
-      return null;
+      return {
+        address: null,
+        error: `PIN setup: ${e instanceof Error ? e.message : String(e)}`,
+      };
     }
   } else if (init?.challengeId) {
     // PIN-less app: a plain CREATE_WALLET challenge.
+    progress("Finalizing wallet…");
     try {
       await executeChallenge(init.challengeId, userToken, encryptionKey);
     } catch (e) {
-      console.error("[ensureWalletAddress] wallet challenge failed:", e);
-      return null;
+      return {
+        address: null,
+        error: `wallet challenge: ${e instanceof Error ? e.message : String(e)}`,
+      };
     }
   }
 
   // Wallet creation settles asynchronously — poll for the address.
+  progress("Confirming wallet on Arc…");
   for (let i = 0; i < 8; i++) {
     await sleep(1500);
     const addr = await fetchAddress(userToken);
-    if (addr) return addr;
+    if (addr) return { address: addr };
   }
-  return null;
+  return { address: null, error: "Wallet not found after creation (timeout)" };
 }
