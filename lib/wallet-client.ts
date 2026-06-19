@@ -92,51 +92,61 @@ async function fetchAddress(userToken: string): Promise<string | null> {
   }
 }
 
-// Use a fresh W3SSdk instance for execute() so we get fresh postMessage
-// event listeners. The login SDK unsubscribes after OAuth completes, so its
-// execute() callback would never fire. setAuthentication() provides credentials.
-async function executeChallengeWithFreshSdk(
+/**
+ * Run a Circle challenge (PIN setup, wallet creation, etc.) to completion.
+ *
+ * Uses a fresh W3SSdk instance with explicit setAuthentication() rather than
+ * reusing the login SDK, because:
+ *  - After a redirect-based Google OAuth login, the login SDK's postMessage
+ *    subscription is in "login" mode and its execute() callback never fires.
+ *  - A fresh instance gets clean event listeners.
+ *  - setAuthentication({ userToken, encryptionKey }) supplies the credentials
+ *    the challenge iframe needs. NOTE: encryptionKey here is the one returned
+ *    in the LOGIN RESULT (SocialLoginResult.encryptionKey), NOT the
+ *    deviceEncryptionKey from the device-token step — using the wrong one
+ *    yields error 155118 (invalidEncryptionKey).
+ */
+async function executeChallenge(
   challengeId: string,
   userToken: string,
-  encryptionKey?: string
+  encryptionKey: string
 ): Promise<void> {
   const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
-  const freshSdk = new W3SSdk({ appSettings: { appId: PUBLIC_APP_ID } });
-  if (encryptionKey) freshSdk.setAuthentication({ userToken, encryptionKey });
+  const sdk = new W3SSdk({ appSettings: { appId: PUBLIC_APP_ID } });
+  sdk.setAuthentication({ userToken, encryptionKey });
   return new Promise<void>((resolve, reject) => {
-    freshSdk.execute(challengeId, (error: { message: string } | undefined) => {
-      if (error) reject(new Error(error.message));
-      else resolve();
-    });
+    sdk.execute(
+      challengeId,
+      (error: { code?: number; message: string } | undefined) => {
+        if (error) {
+          console.error("[executeChallenge] failed:", error.code, error.message);
+          reject(new Error(`${error.code ?? "?"}: ${error.message}`));
+        } else {
+          resolve();
+        }
+      }
+    );
   });
 }
 
 /**
- * After a successful login (userToken in hand), make sure the user has an Arc
- * wallet and return its address. Creates the wallet via an SDK challenge when
- * the user is brand new.
+ * After a successful login, ensure the user has an Arc wallet and return its
+ * address. For new users on a PIN-based Circle App, this triggers the PIN
+ * setup modal (which also creates the ARC-TESTNET wallet in one challenge).
  *
- * encryptionKey = deviceEncryptionKey from the login flow. Required for the
- * redirect-based Google OAuth flow where the SDK needs explicit authentication
- * before execute() can be called.
+ * @param userToken      Circle user token from the login result.
+ * @param encryptionKey  SocialLoginResult/EmailLoginResult `encryptionKey`
+ *                       (NOT deviceEncryptionKey). Required to run challenges.
  */
 export async function ensureWalletAddress(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sdk: any,
   userToken: string,
-  encryptionKey?: string
+  encryptionKey: string
 ): Promise<string | null> {
   // Returning user — wallet already exists.
   const existing = await fetchAddress(userToken);
   if (existing) return existing;
 
-  // Authenticate the SDK for challenge execution (required after redirect-based
-  // logins like Google OAuth where the session is not automatically carried over).
-  if (encryptionKey) {
-    sdk.setAuthentication({ userToken, encryptionKey });
-  }
-
-  // New user — create the wallet, then execute the challenge.
+  // New user — try to create the wallet directly.
   const init = await fetch("/api/wallet/create-wallet", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -145,20 +155,24 @@ export async function ensureWalletAddress(
     .then((r) => r.json())
     .catch(() => null);
 
+  // PIN-based Circle App: createWallet fails until the user sets a PIN.
+  // init-pin's createUserPinWithWallets sets the PIN AND creates the wallet
+  // in a single challenge.
   if (init?.error) {
-    console.error("[ensureWalletAddress] createWallet failed:", init.error, init.detail ?? "");
-
-    // PIN-based Circle App: user hasn't set up a PIN yet.
-    // createUserPinWithWallets sets PIN + creates ARC-TESTNET wallet in one step.
-    const needsPin = (init.detail as string | undefined)?.toLowerCase().includes("pin");
-    if (!needsPin) return null;
+    const needsPin = (init.detail as string | undefined)
+      ?.toLowerCase()
+      .includes("pin");
+    if (!needsPin) {
+      console.error("[ensureWalletAddress] createWallet failed:", init.error, init.detail ?? "");
+      return null;
+    }
 
     const pinInit = await fetch("/api/wallet/init-pin", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ userToken }),
     })
-      .then(async (r) => { const d = await r.json(); console.log("[init-pin]", r.status, d); return d; })
+      .then((r) => r.json())
       .catch(() => null);
 
     if (!pinInit?.challengeId) {
@@ -167,31 +181,23 @@ export async function ensureWalletAddress(
     }
 
     try {
-      await executeChallengeWithFreshSdk(pinInit.challengeId, userToken, encryptionKey);
+      await executeChallenge(pinInit.challengeId, userToken, encryptionKey);
     } catch (e) {
       console.error("[ensureWalletAddress] PIN setup failed:", e);
       return null;
     }
-
-    // Wallet creation is async — poll after PIN setup.
-    for (let i = 0; i < 6; i++) {
-      await sleep(1500);
-      const addr = await fetchAddress(userToken);
-      if (addr) return addr;
-    }
-    return null;
-  }
-
-  if (init?.challengeId) {
+  } else if (init?.challengeId) {
+    // PIN-less app: a plain CREATE_WALLET challenge.
     try {
-      await executeChallengeWithFreshSdk(init.challengeId, userToken, encryptionKey);
+      await executeChallenge(init.challengeId, userToken, encryptionKey);
     } catch (e) {
       console.error("[ensureWalletAddress] wallet challenge failed:", e);
+      return null;
     }
   }
 
   // Wallet creation settles asynchronously — poll for the address.
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     await sleep(1500);
     const addr = await fetchAddress(userToken);
     if (addr) return addr;
