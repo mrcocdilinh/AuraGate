@@ -1,13 +1,19 @@
 import Link from "next/link";
-import { listServices, listReceipts } from "@/lib/store";
-import { usd } from "@/lib/format";
+import { listServices, listReceipts, getSellers } from "@/lib/store";
+import { usd, shortAddr } from "@/lib/format";
+import { ReputationBar, Stars } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const [services, receipts] = await Promise.all([listServices(), listReceipts()]);
+  const [services, receipts, sellers] = await Promise.all([
+    listServices(),
+    listReceipts(),
+    getSellers(),
+  ]);
   const revenue = receipts.reduce((a, r) => a + Number(r.amount), 0);
   const buyers = new Set(receipts.map((r) => r.payer)).size;
+  const topSellers = sellers.slice(0, 3);
 
   return (
     <div>
@@ -19,30 +25,35 @@ export default async function Home() {
             Built on Arc · powered by x402 + Circle Gateway
           </span>
           <h1 className="mt-6 text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-6xl">
-            The marketplace for the{" "}
-            <span className="gradient-text">agentic economy</span>
+            The open registry for{" "}
+            <span className="gradient-text">AI agents to move value</span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-muted sm:text-lg">
-            AI agents discover APIs, pay{" "}
-            <strong className="text-ink">USDC per request</strong> with x402 — no
-            API keys, no subscriptions — and get an on-chain receipt as proof of
-            quality. Sellers list a service and get paid instantly.
+            Any developer can list an x402 service. Any agent can discover and pay{" "}
+            <strong className="text-ink">USDC per request</strong> — no API keys,
+            no sign-ups, no approval queue. Every call settles to a verifiable{" "}
+            <strong className="text-ink">on-chain receipt</strong>, and reputation
+            is earned, not curated.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/services" className="btn-primary w-full sm:w-auto">
-              Browse marketplace
+              Browse the registry
             </Link>
             <Link href="/playground" className="btn-ghost w-full sm:w-auto">
               Watch an agent pay →
             </Link>
           </div>
           <p className="mt-4 text-xs text-muted">
-            Sign in with email or Google — a Circle wallet is created for you.
+            Machine-readable catalog at{" "}
+            <Link href="/api/agent" className="text-ink underline-offset-2 hover:underline">
+              /api/agent
+            </Link>{" "}
+            · sign in with email or Google for a Circle wallet
           </p>
         </div>
 
         {/* Live stats bar */}
-        <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-6 rounded-2xl border border-line bg-surface/50 px-8 py-5 text-center">
+        <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-6 rounded-2xl border border-line bg-panel/50 px-8 py-5 text-center">
           {[
             ["Services", services.length],
             ["Requests paid", receipts.length],
@@ -75,6 +86,71 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Differentiator: open vs curated */}
+      <section className="container-page mt-24">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-2xl font-bold sm:text-3xl">
+            The <span className="gradient-text">permissionless</span> layer of the agent economy
+          </h2>
+          <p className="mt-3 text-sm text-muted">
+            Curated marketplaces decide who gets to sell. AuraGate doesn&apos;t —
+            trust comes from on-chain receipts and ratings instead of a gatekeeper.
+          </p>
+        </div>
+        <div className="mt-8 grid gap-4 md:grid-cols-3">
+          {[
+            ["Open registration", "List a service in minutes by pointing at your own x402 endpoint. No application, no waitlist.", "∞"],
+            ["On-chain receipts", "Every paid request hashes the result and settles to the ReceiptRegistry contract on Arc — independently verifiable.", "⛓"],
+            ["Earned reputation", "Buyers rate each receipt. Seller scores blend rating quality, demand and verified coverage.", "★"],
+          ].map(([t, d, icon]) => (
+            <div key={String(t)} className="card p-6">
+              <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-cyan/20 to-purple/20 text-lg">
+                {icon}
+              </div>
+              <h3 className="mt-4 font-semibold">{t}</h3>
+              <p className="mt-1.5 text-sm text-muted">{d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Top sellers leaderboard teaser */}
+      {topSellers.length > 0 && (
+        <section className="container-page mt-24">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Top sellers by reputation</h2>
+              <p className="mt-1 text-sm text-muted">Reputation is earned from real, rated, on-chain receipts.</p>
+            </div>
+            <Link href="/sellers" className="btn-ghost hidden sm:inline-flex">
+              Full leaderboard →
+            </Link>
+          </div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            {topSellers.map((s, i) => (
+              <div key={s.address} className="card p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-muted">#{i + 1}</span>
+                  <ReputationBar score={s.reputation} />
+                </div>
+                <p className="mt-3 font-semibold">{s.name}</p>
+                <p className="font-mono text-xs text-muted">{shortAddr(s.address)}</p>
+                <div className="mt-3 flex items-center justify-between text-xs text-muted">
+                  <span>{s.services} svc · {s.calls} calls</span>
+                  {s.avgRating !== null ? (
+                    <span className="flex items-center gap-1">
+                      <Stars value={s.avgRating} />
+                    </span>
+                  ) : (
+                    <span>no ratings</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Two sides */}
       <section className="container-page mt-24 grid gap-5 md:grid-cols-2">
         <div className="card p-7">
@@ -92,7 +168,7 @@ export default async function Home() {
         <div className="card p-7">
           <h3 className="text-xl font-bold">For sellers</h3>
           <ul className="mt-4 space-y-2.5 text-sm text-muted">
-            <Li>List any API in minutes and set a per-request price</Li>
+            <Li>List any x402 endpoint in minutes and set a per-request price</Li>
             <Li>Receive USDC on Arc, withdraw cross-chain</Li>
             <Li>Dashboard: revenue chart, top buyers, ratings</Li>
             <Li>Reputation builds from on-chain receipts</Li>
@@ -114,7 +190,7 @@ export default async function Home() {
           </h3>
           <p className="mt-3 max-w-2xl text-sm text-muted">
             The AuraPredict prediction-market indexer is listed on AuraGate as a
-            paid oracle/insight service — proving the marketplace works with a real
+            paid oracle/insight service — proving the registry works with a real
             product, not just a demo.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">

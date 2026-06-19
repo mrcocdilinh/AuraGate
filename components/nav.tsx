@@ -6,7 +6,8 @@ import { useState } from "react";
 import { ConnectButton } from "./connect-button";
 
 const LINKS = [
-  { href: "/services", label: "Marketplace" },
+  { href: "/services", label: "Registry" },
+  { href: "/sellers", label: "Sellers" },
   { href: "/dashboard", label: "Seller" },
   { href: "/receipts", label: "Receipts" },
   { href: "/playground", label: "Agent" },

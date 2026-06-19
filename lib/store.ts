@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { Payment, Receipt, Service } from "./types";
+import type { Payment, Receipt, Service, SellerStats } from "./types";
 import { SEED_SERVICES } from "./services-seed";
 
 // ─── Backend selection ───────────────────────────────────────────────────────────────────────────────
@@ -74,6 +74,37 @@ export async function addService(
     mem().services.unshift(svc);
   }
   return svc;
+}
+
+async function writeAllServices(services: Service[]): Promise<void> {
+  if (USE_KV) {
+    const k = await kv();
+    await k.set("ag:services", services);
+  } else {
+    mem().services = services;
+  }
+}
+
+/** Toggle a service active/inactive. Returns the updated service. */
+export async function setServiceActive(
+  slug: string,
+  active: boolean
+): Promise<Service | undefined> {
+  const services = await getAllServices();
+  const svc = services.find((s) => s.slug === slug);
+  if (!svc) return undefined;
+  svc.active = active;
+  await writeAllServices(services);
+  return svc;
+}
+
+/** Remove a service from the registry. Returns true when one was deleted. */
+export async function deleteService(slug: string): Promise<boolean> {
+  const services = await getAllServices();
+  const next = services.filter((s) => s.slug !== slug);
+  if (next.length === services.length) return false;
+  await writeAllServices(next);
+  return true;
 }
 
 // ─── Payments ───────────────────────────────────────────────────────────────────────────────────────
@@ -171,4 +202,89 @@ export async function rateReceipt(
   const receipt = mem().receipts.find((r) => r.id === id);
   if (receipt) receipt.rating = stars;
   return receipt;
+}
+
+// ─── Reputation ────────────────────────────────────────────────────────────────────────────────────
+/**
+ * Aggregate per-seller reputation from services + receipts. The composite
+ * `reputation` score (0–100) blends rating quality, demand (calls) and how much
+ * of the catalog is health-checked — the trust signal Circle's curated
+ * marketplace doesn't expose.
+ */
+export async function getSellers(): Promise<SellerStats[]> {
+  const [services, receipts] = await Promise.all([
+    getAllServices(),
+    listReceipts(),
+  ]);
+
+  const slugToSeller = new Map<string, { address: string; name: string }>();
+  for (const s of services) {
+    slugToSeller.set(s.slug, { address: s.sellerAddress, name: s.sellerName });
+  }
+
+  type Acc = Omit<SellerStats, "reputation"> & { ratingSum: number };
+  const map = new Map<string, Acc>();
+
+  const ensure = (address: string, name: string, createdAt: string): Acc => {
+    let a = map.get(address);
+    if (!a) {
+      a = {
+        address,
+        name,
+        services: 0,
+        calls: 0,
+        revenue: 0,
+        avgRating: null,
+        ratedCount: 0,
+        verifiedServices: 0,
+        firstSeen: createdAt,
+        ratingSum: 0,
+      };
+      map.set(address, a);
+    }
+    return a;
+  };
+
+  for (const s of services) {
+    const a = ensure(s.sellerAddress, s.sellerName, s.createdAt);
+    a.services += 1;
+    if (s.verified) a.verifiedServices += 1;
+    if (s.createdAt < a.firstSeen) a.firstSeen = s.createdAt;
+  }
+
+  for (const r of receipts) {
+    const owner = slugToSeller.get(r.serviceSlug);
+    if (!owner) continue;
+    const a = ensure(owner.address, owner.name, r.createdAt);
+    a.calls += 1;
+    a.revenue += Number(r.amount);
+    if (r.rating) {
+      a.ratingSum += r.rating;
+      a.ratedCount += 1;
+    }
+  }
+
+  return [...map.values()]
+    .map((a) => {
+      const avgRating = a.ratedCount > 0 ? a.ratingSum / a.ratedCount : null;
+      // Composite: rating (50%) + demand (30%) + verified coverage (20%).
+      const ratingScore = avgRating !== null ? (avgRating / 5) * 50 : 20;
+      const demandScore = Math.min(a.calls / 50, 1) * 30;
+      const verifiedScore =
+        a.services > 0 ? (a.verifiedServices / a.services) * 20 : 0;
+      const reputation = Math.round(ratingScore + demandScore + verifiedScore);
+      return {
+        address: a.address,
+        name: a.name,
+        services: a.services,
+        calls: a.calls,
+        revenue: a.revenue,
+        avgRating,
+        ratedCount: a.ratedCount,
+        verifiedServices: a.verifiedServices,
+        reputation,
+        firstSeen: a.firstSeen,
+      } satisfies SellerStats;
+    })
+    .sort((a, b) => b.reputation - a.reputation || b.revenue - a.revenue);
 }

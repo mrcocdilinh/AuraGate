@@ -13,15 +13,27 @@ export async function GET(req: NextRequest) {
     description: s.description,
     category: s.category,
     seller: s.sellerName,
+    sellerAddress: s.sellerAddress,
     method: s.method,
-    url: `${origin}${s.endpoint}`,
+    // Seller-hosted endpoints are advertised directly; internal demos proxy.
+    url: s.externalUrl ?? `${origin}${s.endpoint}`,
+    hosted: s.externalUrl ? "seller" : "auragate",
+    verified: Boolean(s.verified),
+    ...(s.tags?.length ? { tags: s.tags } : {}),
+    ...(s.docsUrl ? { docs: s.docsUrl } : {}),
     price: { amount: s.price, currency: "USDC", atomic: toAtomicUSDC(s.price) },
   }));
 
   return NextResponse.json({
     name: "AuraGate",
     description:
-      "Discovery & payment marketplace for the agentic economy on Arc. Pay USDC per request via x402 + Circle Gateway.",
+      "Open, permissionless registry of x402 services on Arc with on-chain receipts and reputation. Pay USDC per request via x402 + Circle Gateway.",
+    registry: {
+      open: true,
+      register: `${origin}/api/services`,
+      sellers: `${origin}/api/sellers`,
+      receipts: `${origin}/api/receipts`,
+    },
     protocol: { name: "x402", version: 2, settlement: "circle-gateway" },
     network: {
       name: "Arc Testnet",

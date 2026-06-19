@@ -3,8 +3,26 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Receipt } from "@/lib/types";
 import { usd, shortAddr, timeAgo } from "@/lib/format";
-import { ARC, explorerTx } from "@/lib/arc";
+import { ARC, explorerTx, explorerAddress } from "@/lib/arc";
 import { Stars } from "@/components/ui";
+
+const ZERO = "0x0000000000000000000000000000000000000000";
+
+function exportCsv(receipts: Receipt[]) {
+  const head = ["id", "service", "payer", "amount", "resultHash", "rating", "onchainTx", "createdAt"];
+  const rows = receipts.map((r) =>
+    [r.id, r.serviceSlug, r.payer, r.amount, r.resultHash, r.rating ?? "", r.onchainTx ?? "", r.createdAt]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(",")
+  );
+  const blob = new Blob([[head.join(","), ...rows].join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `auragate-receipts-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // ── Seller rating summary ─────────────────────────────────────────────────────
 
@@ -119,11 +137,42 @@ export default function ReceiptsPage() {
 
   return (
     <div className="container-page py-10">
-      <h1 className="text-3xl font-bold">Receipt explorer</h1>
-      <p className="mt-1 text-sm text-muted">
-        Every paid request is a verifiable receipt — payer, amount and a hash of
-        the result. Rate a service to build seller reputation.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">Receipt explorer</h1>
+          <p className="mt-1 text-sm text-muted">
+            Every paid request is a verifiable receipt — payer, amount and a hash
+            of the result. Rate a service to build seller reputation.
+          </p>
+        </div>
+        <button
+          className="btn-ghost text-xs"
+          onClick={() => exportCsv(receipts)}
+          disabled={receipts.length === 0}
+        >
+          Export CSV
+        </button>
+      </div>
+
+      {/* On-chain registry status */}
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-panel/50 px-4 py-2.5 text-xs">
+        <span className="h-2 w-2 rounded-full bg-mint" />
+        <span className="text-muted">ReceiptRegistry on Arc Testnet:</span>
+        {ARC.receiptRegistry && ARC.receiptRegistry !== ZERO ? (
+          <a
+            href={explorerAddress(ARC.receiptRegistry)}
+            target="_blank"
+            rel="noreferrer"
+            className="font-mono text-primary hover:underline"
+          >
+            {ARC.receiptRegistry}
+          </a>
+        ) : (
+          <span className="font-mono text-amber">
+            not deployed yet — receipts are stored off-chain until the contract is live
+          </span>
+        )}
+      </div>
 
       {/* Filters */}
       <div className="mt-5 flex flex-wrap gap-3">

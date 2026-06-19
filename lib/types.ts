@@ -14,8 +14,17 @@ export interface Service {
   sellerName: string;
   price: string;
   method: "GET" | "POST";
+  /** Call URL agents hit. Internal demo services use /api/premium/[slug]. */
   endpoint: string;
+  /** Seller-hosted x402 endpoint (open registry). When set, agents call this. */
+  externalUrl?: string;
+  /** Optional docs / homepage link shown on the service page. */
+  docsUrl?: string;
+  /** Free-form discovery tags. */
+  tags?: string[];
   sampleResponse: unknown;
+  /** Endpoint passed a live 402 health-check at registration time. */
+  verified?: boolean;
   active: boolean;
   createdAt: string;
 }
@@ -42,4 +51,19 @@ export interface Receipt {
   onchainTx?: string;
   blockNumber?: number;
   createdAt: string;
+}
+
+/** Aggregated reputation for a seller (derived from services + receipts). */
+export interface SellerStats {
+  address: string;
+  name: string;
+  services: number;
+  calls: number;
+  revenue: number;
+  avgRating: number | null;
+  ratedCount: number;
+  verifiedServices: number;
+  /** 0–100 composite reputation score. */
+  reputation: number;
+  firstSeen: string;
 }
