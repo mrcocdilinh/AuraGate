@@ -15,6 +15,9 @@ type Phase = "verifying" | "creating" | "done" | "error";
 export default function GoogleCallbackPage() {
   const [phase, setPhase] = useState<Phase>("verifying");
   const [message, setMessage] = useState("Completing sign-in…");
+  // Accumulated diagnostic trail so no step is lost if the flow stalls.
+  const [trail, setTrail] = useState<string[]>([]);
+  const addStep = (m: string) => setTrail((t) => [...t, m]);
   const ran = useRef(false);
 
   useEffect(() => {
@@ -94,7 +97,10 @@ export default function GoogleCallbackPage() {
               sdk,
               result.userToken,
               result.encryptionKey,
-              (msg) => setMessage(msg)
+              (msg) => {
+                setMessage(msg);
+                addStep(msg);
+              }
             );
 
             if (!address && walletError) {
@@ -147,6 +153,16 @@ export default function GoogleCallbackPage() {
           </p>
           <p className="mt-1 text-sm text-muted">{message}</p>
         </div>
+
+        {trail.length > 0 && (
+          <ol className="mt-2 w-full max-w-md space-y-1 text-left text-[11px] leading-relaxed text-muted">
+            {trail.map((step, i) => (
+              <li key={i} className="break-words font-mono">
+                {i + 1}. {step}
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     </div>
   );

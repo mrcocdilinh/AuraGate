@@ -176,6 +176,8 @@ export async function ensureWalletAddress(
   })
     .then((r) => r.json())
     .catch(() => null);
+  // Surface exactly what create-wallet returned (challengeId / error / detail).
+  progress(`create-wallet → ${JSON.stringify(init)}`);
 
   // PIN-based Circle App: createWallet fails until the user sets a PIN.
   // init-pin's createUserPinWithWallets sets the PIN AND creates the wallet
@@ -195,6 +197,7 @@ export async function ensureWalletAddress(
     })
       .then((r) => r.json())
       .catch(() => null);
+    progress(`init-pin → ${JSON.stringify(pinInit)}`);
 
     if (!pinInit?.challengeId) {
       return {
@@ -212,6 +215,7 @@ export async function ensureWalletAddress(
         error: `PIN setup: ${e instanceof Error ? e.message : String(e)}`,
       };
     }
+    progress("PIN challenge done — confirming…");
   } else if (init?.challengeId) {
     // PIN-less app: a plain CREATE_WALLET challenge.
     progress("Finalizing wallet…");
@@ -223,6 +227,7 @@ export async function ensureWalletAddress(
         error: `wallet challenge: ${e instanceof Error ? e.message : String(e)}`,
       };
     }
+    progress("Wallet challenge done — confirming…");
   }
 
   // Wallet creation settles asynchronously — poll for the address.
