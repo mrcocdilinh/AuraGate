@@ -18,9 +18,16 @@ export function ConnectButton() {
   if (w.status === "connected") {
     return (
       <div className="flex items-center gap-2">
-        <span className="badge !text-ink">
-          <span className="h-2 w-2 rounded-full bg-mint" />
+        <span className="badge !text-ink" title={w.address}>
+          <span
+            className={`h-2 w-2 rounded-full ${w.demo ? "bg-amber-400" : "bg-mint"}`}
+          />
           {shortAddr(w.address)}
+          {w.demo && (
+            <span className="ml-1 text-[10px] font-semibold uppercase text-amber-400">
+              demo
+            </span>
+          )}
         </span>
         <button className="btn-ghost !py-2 !px-3" onClick={w.logout}>
           Logout
