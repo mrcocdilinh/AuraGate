@@ -240,6 +240,7 @@ Login (Google redirect / Email OTP)
 
 ### Trạng thái
 
-- ✅ Google login: connect thành công, ví ổn định theo account (không tạo mới).
-- ⏳ Cần confirm badge xanh (ví thật) vs vàng (demo) sau deploy mới nhất.
+- ✅ Google login: connect thành công, ví **Circle THẬT** trên ARC-TESTNET
+  (badge chấm xanh, không nhãn — đã confirm trên production), ổn định theo
+  account (không tạo ví mới mỗi lần).
 - ⏳ Email OTP: chờ DNS Resend verify đầy đủ + SMTP "From" khớp domain.
