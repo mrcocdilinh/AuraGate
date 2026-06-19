@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getService, recordPayment, recordReceipt } from "@/lib/store";
+import { getService, recordPayment, recordReceipt, updateReceiptOnchainTx } from "@/lib/store";
 import { buildChallenge, settlePayment } from "@/lib/x402";
 import { resultHash } from "@/lib/format";
+import { writeReceiptOnChain } from "@/lib/onchain";
 import { ARC } from "@/lib/arc";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,19 @@ async function handle(req: NextRequest, slug: string) {
     amount: payment.amount,
     resultHash: hash,
     onchainTx: payment.transaction,
+  });
+
+  // Fire-and-forget on-chain write — doesn't block the response
+  writeReceiptOnChain({
+    payer: payment.payer,
+    serviceSlug: slug,
+    amountUsd: payment.amount,
+    resultHash: hash,
+  }).then(async (tx) => {
+    if (tx) {
+      await updateReceiptOnchainTx(receipt.id, tx);
+      console.log("[onchain] receipt tx:", tx);
+    }
   });
 
   return NextResponse.json(body, {

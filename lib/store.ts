@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import type { Payment, Receipt, Service } from "./types";
 import { SEED_SERVICES } from "./services-seed";
 
-// ─── Backend selection ───────────────────────────────────────────────────
+// ─── Backend selection ───────────────────────────────────────────────────────────────────────────────
 // When Vercel KV is connected, KV_REST_API_URL + KV_REST_API_TOKEN are injected
 // automatically. Locally (or before KV is added) we fall back to in-memory.
 const USE_KV = !!(
@@ -14,7 +14,7 @@ async function kv() {
   return client;
 }
 
-// ─── In-memory fallback ───────────────────────────────────────────────────
+// ─── In-memory fallback ─────────────────────────────────────────────────────────────────────────────────
 interface DB {
   services: Service[];
   payments: Payment[];
@@ -31,7 +31,7 @@ function mem(): DB {
   return g.__ag;
 }
 
-// ─── Services ─────────────────────────────────────────────────────────────────
+// ─── Services ────────────────────────────────────────────────────────────────────────────────────────
 async function getAllServices(): Promise<Service[]> {
   if (USE_KV) {
     const k = await kv();
@@ -76,7 +76,7 @@ export async function addService(
   return svc;
 }
 
-// ─── Payments ─────────────────────────────────────────────────────────────────
+// ─── Payments ───────────────────────────────────────────────────────────────────────────────────────
 export async function recordPayment(
   p: Omit<Payment, "id" | "createdAt">
 ): Promise<Payment> {
@@ -103,7 +103,7 @@ export async function listPayments(): Promise<Payment[]> {
   return mem().payments;
 }
 
-// ─── Receipts ─────────────────────────────────────────────────────────────────
+// ─── Receipts ───────────────────────────────────────────────────────────────────────────────────────
 export async function recordReceipt(
   r: Omit<Receipt, "id" | "createdAt">
 ): Promise<Receipt> {
@@ -130,6 +130,26 @@ export async function listReceipts(): Promise<Receipt[]> {
   return mem().receipts;
 }
 
+export async function updateReceiptOnchainTx(
+  id: string,
+  onchainTx: string
+): Promise<void> {
+  if (USE_KV) {
+    const k = await kv();
+    const receipts = await k.lrange<Receipt>("ag:receipts", 0, -1);
+    const idx = receipts.findIndex((r) => r.id === id);
+    if (idx === -1) return;
+    receipts[idx] = { ...receipts[idx], onchainTx };
+    await k.del("ag:receipts");
+    for (let i = receipts.length - 1; i >= 0; i--) {
+      await k.lpush("ag:receipts", receipts[i]);
+    }
+  } else {
+    const r = mem().receipts.find((r) => r.id === id);
+    if (r) r.onchainTx = onchainTx;
+  }
+}
+
 export async function rateReceipt(
   id: string,
   rating: number
@@ -141,6 +161,7 @@ export async function rateReceipt(
     const idx = receipts.findIndex((r) => r.id === id);
     if (idx === -1) return undefined;
     receipts[idx] = { ...receipts[idx], rating: stars };
+    // Rebuild list with updated entry
     await k.del("ag:receipts");
     for (let i = receipts.length - 1; i >= 0; i--) {
       await k.lpush("ag:receipts", receipts[i]);
