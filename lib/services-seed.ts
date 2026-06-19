@@ -1,0 +1,78 @@
+import type { Service } from "./types";
+
+/**
+ * Seed listings. AuraPredict is the first seller — its market-insight API is
+ * the flagship "real" service. The others demonstrate a multi-seller market.
+ */
+export const SEED_SERVICES: Service[] = [
+  {
+    slug: "market-insight",
+    name: "AuraPredict Market Insight",
+    description:
+      "Paid oracle receipt & prediction-market insight API. Returns live market odds, evidence quality and a resolution-risk score, sourced from the AuraPredict indexer on Arc.",
+    category: "market-insight",
+    sellerAddress: "0xA0Ra1111111111111111111111111111111111A1",
+    sellerName: "AuraPredict",
+    price: "0.01",
+    method: "GET",
+    endpoint: "/api/premium/market-insight",
+    sampleResponse: {
+      market: "Will ETH close above $4000 on 2026-07-01?",
+      yesOdds: 0.62,
+      noOdds: 0.38,
+      evidenceQuality: "high",
+      resolutionRisk: 0.12,
+      source: "aurapredict-indexer",
+    },
+    active: true,
+    createdAt: "2026-06-01T00:00:00.000Z",
+  },
+  {
+    slug: "oracle-check",
+    name: "Crypto Price Oracle Check",
+    description:
+      "Objective oracle check for crypto spot prices with confidence score. Designed for agents resolving objective markets or triggering settlement.",
+    category: "oracle",
+    sellerAddress: "0x0Rac1e22222222222222222222222222222222B2",
+    sellerName: "OracleWorks",
+    price: "0.005",
+    method: "GET",
+    endpoint: "/api/premium/oracle-check",
+    sampleResponse: { symbol: "ETH", price: 3984.21, confidence: 0.98 },
+    active: true,
+    createdAt: "2026-06-03T00:00:00.000Z",
+  },
+  {
+    slug: "summarize",
+    name: "AI Document Summarizer",
+    description:
+      "Compresses long text into a structured summary with key points. Pay-per-call, no API key, no subscription.",
+    category: "ai",
+    sellerAddress: "0xA1bb3333333333333333333333333333333333C3",
+    sellerName: "BriefBot",
+    price: "0.02",
+    method: "POST",
+    endpoint: "/api/premium/summarize",
+    sampleResponse: {
+      summary: "3-bullet structured summary…",
+      tokens: 512,
+    },
+    active: true,
+    createdAt: "2026-06-05T00:00:00.000Z",
+  },
+  {
+    slug: "dataset",
+    name: "On-chain Analytics Dataset",
+    description:
+      "Daily JSON analytics snapshot: volumes, active wallets and top flows across Arc. Cheap enough to poll continuously.",
+    category: "data",
+    sellerAddress: "0xDA7a4444444444444444444444444444444444D4",
+    sellerName: "ChainLabs",
+    price: "0.001",
+    method: "GET",
+    endpoint: "/api/premium/dataset",
+    sampleResponse: { day: "2026-06-18", volumeUsdc: 1284000, activeWallets: 8123 },
+    active: true,
+    createdAt: "2026-06-08T00:00:00.000Z",
+  },
+];
