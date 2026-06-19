@@ -92,14 +92,27 @@ async function fetchAddress(userToken: string): Promise<string | null> {
   }
 }
 
+// Always use a fresh SDK instance for execute() so stale OAuth session state
+// from the login SDK doesn't cause "Invalid credentials" on challenge execution.
+async function executeChallenge(challengeId: string): Promise<void> {
+  const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+  const sdk = new W3SSdk({ appSettings: { appId: PUBLIC_APP_ID } });
+  return new Promise<void>((resolve, reject) => {
+    sdk.execute(challengeId, (error: { message: string } | undefined) => {
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
+  });
+}
+
 /**
  * After a successful login (userToken in hand), make sure the user has an Arc
  * wallet and return its address. Creates the wallet via an SDK challenge when
- * the user is brand new. `sdk` is the same W3SSdk instance used to log in.
+ * the user is brand new.
  */
 export async function ensureWalletAddress(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  sdk: any,
+  _sdk: any,
   userToken: string
 ): Promise<string | null> {
   // Returning user — wallet already exists.
@@ -121,7 +134,7 @@ export async function ensureWalletAddress(
     // PIN-based Circle App: user hasn't set up a PIN yet.
     // createUserPinWithWallets sets PIN + creates ARC-TESTNET wallet in one step.
     const needsPin = (init.detail as string | undefined)?.toLowerCase().includes("pin");
-    if (!needsPin) return null; // different error — skip polling
+    if (!needsPin) return null;
 
     const pinInit = await fetch("/api/wallet/init-pin", {
       method: "POST",
@@ -136,13 +149,12 @@ export async function ensureWalletAddress(
       return null;
     }
 
-    // Show PIN setup modal; wallet is created on challenge completion.
-    await new Promise<void>((resolve, reject) => {
-      sdk.execute(pinInit.challengeId, (error: { message: string } | undefined) => {
-        if (error) reject(new Error(error.message));
-        else resolve();
-      });
-    });
+    try {
+      await executeChallenge(pinInit.challengeId);
+    } catch (e) {
+      console.error("[ensureWalletAddress] PIN setup failed:", e);
+      return null;
+    }
 
     // Wallet creation is async — poll after PIN setup.
     for (let i = 0; i < 6; i++) {
@@ -154,12 +166,11 @@ export async function ensureWalletAddress(
   }
 
   if (init?.challengeId) {
-    await new Promise<void>((resolve, reject) => {
-      sdk.execute(init.challengeId, (error: { message: string } | undefined) => {
-        if (error) reject(new Error(error.message));
-        else resolve();
-      });
-    });
+    try {
+      await executeChallenge(init.challengeId);
+    } catch (e) {
+      console.error("[ensureWalletAddress] wallet challenge failed:", e);
+    }
   }
 
   // Wallet creation settles asynchronously — poll for the address.
