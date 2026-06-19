@@ -16,13 +16,18 @@ AI agents có thể tìm API/dịch vụ, trả USDC theo từng request bằng 
 - AuraPredict vẫn tồn tại, được đưa vào AuraGate làm **seller đầu tiên** (paid
   market-insight API), biến nó thành service thay vì competitor.
 
-## Điểm khác biệt so với demo chính thức của Circle
+## Định vị so với Circle agents.circle.com
 
-Repo `circlefin/arc-nanopayments` của Circle đã có x402 endpoint + buyer agent cơ bản.
-AuraGate bổ sung 3 thứ Circle chưa làm:
-1. **Multi-seller registry** — nhiều người bán đăng ký động, không phải 1 seller cứng.
-2. **Receipt explorer + ratings** — public explorer có rating 1-5 sao, xây reputation.
-3. **AuraPredict là seller thật** — không phải demo giả, là sản phẩm thực tế.
+Circle đã ra `agents.circle.com` — marketplace riêng, **curated/invite-only** ("Talk to us").
+AuraGate là **đối trọng permissionless**: bất kỳ developer nào cũng có thể tự đăng ký x402 endpoint.
+Trust không từ Circle approval mà từ on-chain receipts + earned reputation score.
+
+Điểm khác biệt so với Circle:
+1. **Open registry** — self-serve, không cần xin phép, không cần KYC.
+2. **On-chain reputation** — score 0-100 tổng hợp từ rating/demand/verified coverage.
+3. **External seller endpoints** — seller tự host, AuraGate health-check 402 khi đăng ký.
+4. **Receipt explorer public** — bằng chứng thanh toán on-chain, exportable CSV.
+5. **AuraPredict là seller thật** — không phải demo giả.
 
 ## Tech Stack
 
@@ -40,27 +45,35 @@ AuraGate bổ sung 3 thứ Circle chưa làm:
 ```
 Next.js App Router
 ├── app/
-│   ├── page.tsx              # Landing — hero, flow strip, AuraPredict spotlight
-│   ├── services/             # Marketplace (list + filter)
+│   ├── page.tsx              # Landing — open registry hero, sellers teaser, differentiation
+│   ├── sellers/              # Reputation leaderboard (score 0-100)
+│   ├── services/             # Registry (list + sort + tag filter)
 │   │   └── [slug]/           # Service detail + TryService x402 demo
-│   ├── dashboard/            # Seller dashboard (revenue stats + register form)
-│   ├── receipts/             # Receipt explorer với rating
+│   ├── dashboard/            # Seller dashboard (MyServices + RegisterService)
+│   ├── receipts/             # Receipt explorer + CSV export + on-chain status
 │   ├── playground/           # Browser agent demo với spending limit
+│   ├── not-found.tsx         # Global 404
+│   ├── error.tsx             # Error boundary
+│   ├── manifest.ts           # PWA manifest
+│   ├── robots.ts             # robots.txt
+│   ├── sitemap.ts            # Dynamic sitemap (routes + service slugs)
 │   └── api/
-│       ├── services/         # GET list / POST register
+│       ├── services/         # GET list / POST register / PATCH toggle / DELETE
+│       ├── sellers/          # GET sellers với reputation scores
 │       ├── premium/[service] # x402-protected endpoints
 │       ├── receipts/         # GET list / POST rate
-│       ├── agent/            # Machine-readable catalog cho AI agents
+│       ├── agent/            # Machine-readable catalog + open registry metadata
 │       └── wallet/           # Circle wallet session token
 ├── components/
-│   ├── nav.tsx, footer.tsx
+│   ├── nav.tsx               # Logo SVG gradient, links: Registry/Sellers/Receipts/Agent
+│   ├── footer.tsx            # 4-col: brand, Product, For agents, Ecosystem
 │   ├── connect-button.tsx    # Email/Google login dropdown
 │   ├── wallet-provider.tsx   # Context: demo mode hoặc real Circle SDK
-│   └── ui.tsx                # Stars, Stat, CategoryPill
+│   └── ui.tsx                # Stars, Stat, VerifiedBadge, ReputationBar, CopyButton, Skeleton
 ├── lib/
-│   ├── types.ts              # Service, Payment, Receipt interfaces
-│   ├── store.ts              # In-memory DB (services/payments/receipts)
-│   ├── services-seed.ts      # 4 seed services (AuraPredict, oracle, AI, data)
+│   ├── types.ts              # Service (+ externalUrl/docsUrl/tags/verified), Payment, Receipt, SellerStats
+│   ├── store.ts              # In-memory DB + getSellers/setServiceActive/deleteService
+│   ├── services-seed.ts      # 4 seed services với tags/verified/docsUrl
 │   ├── x402.ts               # Payment layer: mock + live Circle Gateway
 │   ├── arc.ts                # Arc Testnet config (chainId, RPC, explorer)
 │   ├── circle.ts             # Circle User-Controlled Wallets helper
@@ -88,7 +101,7 @@ Next.js App Router
 
 ## Trạng thái hiện tại
 
-### ✅ Week 1 — Scaffold xong
+### ✅ Phase 1 — Scaffold xong
 - x402 paid endpoints (mock + live)
 - 4 seed services: AuraPredict market-insight, oracle-check, summarize, dataset
 - Marketplace UI, service detail, seller dashboard, receipt explorer, agent playground
@@ -96,19 +109,31 @@ Next.js App Router
 - ReceiptRegistry.sol contract
 - Circle wallet demo mode (email/Google login)
 
-### 🔲 Week 2 — Tiếp theo
+### ✅ Phase 2 — Complete dApp (2026-06-19)
+- **Định vị lại**: Open permissionless registry (vs Circle's agents.circle.com curated marketplace)
+- **Brand kit**: Midnight `#030A18`, Rail Blue `#3E73FF`, Stable Teal `#00CBB8`, brand gradient inline SVG logo
+- **`/sellers`** — Reputation leaderboard mới, score 0-100 (rating 50% + demand 30% + verified 20%)
+- **`/services`** — Sort/tag search, per-service call stats, skeleton loading, VerifiedBadge
+- **`/services/[slug]`** — SEO metadata, CopyButton curl/endpoint, VerifiedBadge, docs link
+- **`/dashboard`** — MyServices management (deactivate/delete) + full RegisterService form (externalUrl, docsUrl, tags, sampleResponse)
+- **`/receipts`** — CSV export + on-chain registry status bar
+- **API mới**: `GET /api/sellers`, `PATCH /api/services` (toggle active), `DELETE /api/services`
+- **`/api/agent`** — open registry metadata (`registry.open: true`, register/sellers/receipts links)
+- **Types mở rộng**: `Service` có `externalUrl?`, `docsUrl?`, `tags?`, `verified?`; thêm `SellerStats`
+- **Store mở rộng**: `getSellers()`, `setServiceActive()`, `deleteService()`, `writeAllServices()`
+- **New routes**: `/not-found`, `/error`, `/manifest`, `/robots`, `/sitemap` (dynamic với service slugs)
+- **Footer**: 4 cột (brand, Product, For agents API, Ecosystem external links)
+- **PWA**: manifest.ts với icons, background/theme color
+
+### 🔲 Tiếp theo
 - [ ] Deploy `ReceiptRegistry` lên Arc Testnet
       → `npm run compile && npm run deploy:receipts`
-      → Set `NEXT_PUBLIC_RECEIPT_REGISTRY=0x...` trong env
+      → Set `NEXT_PUBLIC_RECEIPT_REGISTRY=0x...` trong Vercel env
+      → Set `NEXT_PUBLIC_SITE_URL=https://auragate.app` cho sitemap
 - [ ] Kết nối on-chain write: sau khi settle, gọi `recordReceipt()` trên contract
-- [ ] Supabase persistence (thay in-memory store)
-- [ ] Revenue analytics sâu hơn (chart theo thời gian, top buyers)
-
-### 🔲 Week 3
-- [ ] Agent Wallet spending policy
-- [ ] Demo video
-- [ ] Submit Circle/Arc office hours
-- [ ] Xin listing vào Agent Marketplace của Circle
+- [ ] Supabase persistence (thay in-memory store) — `lib/store.ts` map 1:1 với Supabase tables
+- [ ] Đổi Circle App sang **PIN-less mode** trong Circle Console (fix modal PIN vĩnh viễn)
+- [ ] Demo video + submit Circle/Arc office hours
 
 ## Env Variables quan trọng
 
