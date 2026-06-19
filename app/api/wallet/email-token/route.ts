@@ -18,9 +18,13 @@ export async function POST(req: NextRequest) {
     const token = await createEmailDeviceToken(deviceId, email);
     return NextResponse.json({ ...token, appId: CIRCLE_APP_ID });
   } catch (e) {
-    console.error("[wallet/email-token]", e);
+    const msg =
+      (e as { response?: { data?: { message?: string }; status?: number } })
+        ?.response?.data?.message ??
+      (e instanceof Error ? e.message : String(e));
+    console.error("[wallet/email-token]", msg, e);
     return NextResponse.json(
-      { error: "circle_email_token_failed" },
+      { error: "circle_email_token_failed", detail: msg },
       { status: 502 }
     );
   }

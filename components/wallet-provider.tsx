@@ -99,10 +99,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
       // Server returned an API error (Circle unreachable, bad key, etc.).
       if (tok.error && !tok.demo) {
+        const detail = tok.detail ? `: ${tok.detail}` : "";
         setState({
           status: "disconnected",
           demo: false,
-          error: `Circle error: ${tok.error}`,
+          error: `Circle error: ${tok.error}${detail}`,
         });
         return;
       }
@@ -188,10 +189,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
       // Server returned an API error (Circle unreachable, bad key, etc.).
       if (tok.error && !tok.demo) {
+        const detail = tok.detail ? `: ${tok.detail}` : "";
         setState({
           status: "disconnected",
           demo: false,
-          error: `Circle error: ${tok.error}`,
+          error: `Circle error: ${tok.error}${detail}`,
         });
         return;
       }

@@ -14,9 +14,13 @@ export async function POST(req: NextRequest) {
     const res = await createWalletChallenge(userToken);
     return NextResponse.json(res);
   } catch (e) {
-    console.error("[wallet/create-wallet]", e);
+    const msg =
+      (e as { response?: { data?: { message?: string }; status?: number } })
+        ?.response?.data?.message ??
+      (e instanceof Error ? e.message : String(e));
+    console.error("[wallet/create-wallet]", msg, e);
     return NextResponse.json(
-      { error: "circle_create_wallet_failed" },
+      { error: "circle_create_wallet_failed", detail: msg },
       { status: 502 }
     );
   }
