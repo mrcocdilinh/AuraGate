@@ -1,85 +1,118 @@
 /**
- * Server-side helper for Circle User-Controlled Wallets (email / Google login).
+ * Server-side helpers for Circle User-Controlled Wallets using the real
+ * "Social logins & Email OTP" (PIN-less) flow.
  *
- * Docs: https://developers.circle.com/wallets/user-controlled
+ * Docs: https://developers.circle.com/w3s/social-and-email-login
  *
- * When CIRCLE_API_KEY + NEXT_PUBLIC_CIRCLE_APP_ID are set, this talks to the
- * real Circle API. Otherwise it runs in "demo" mode so the UI is fully usable
- * without a Circle developer account.
+ * Flow overview (the client SDK drives the UI; these endpoints mint the
+ * short-lived device tokens the SDK needs and create the wallet afterwards):
+ *
+ *   Email OTP:  client.getDeviceId() ─▶ createDeviceTokenForEmailLogin
+ *               ─▶ sdk.verifyOtp() ─▶ userToken ─▶ createWallet
+ *   Google:     client.getDeviceId() ─▶ createDeviceTokenForSocialLogin
+ *               ─▶ sdk.performLogin(GOOGLE) ─▶ userToken ─▶ createWallet
+ *
+ * When CIRCLE_API_KEY + NEXT_PUBLIC_CIRCLE_APP_ID are unset the helpers report
+ * `demo: true` so local dev works without a Circle account.
  */
 
 const API_KEY = process.env.CIRCLE_API_KEY ?? "";
 export const CIRCLE_APP_ID = process.env.NEXT_PUBLIC_CIRCLE_APP_ID ?? "";
 
+/** ARC-TESTNET is the Circle blockchain id for Arc Testnet. */
+const WALLET_BLOCKCHAIN = "ARC-TESTNET";
+
 export function circleConfigured(): boolean {
   return Boolean(API_KEY && CIRCLE_APP_ID);
 }
 
-export interface SessionToken {
-  userToken: string;
-  encryptionKey: string;
-  demo: boolean;
-}
-
-/** Create (or fetch) a user token used to drive the client-side Web SDK. */
-export async function createSessionToken(userId: string): Promise<SessionToken> {
-  if (!circleConfigured()) {
-    return { userToken: `demo:${userId}`, encryptionKey: "demo", demo: true };
-  }
-
+async function client() {
   const { initiateUserControlledWalletsClient } = await import(
     "@circle-fin/user-controlled-wallets"
   );
-  const client = initiateUserControlledWalletsClient({ apiKey: API_KEY });
+  return initiateUserControlledWalletsClient({ apiKey: API_KEY });
+}
 
-  try {
-    await client.createUser({ userId });
-  } catch {
-    // user already exists — ignore
+export interface EmailDeviceToken {
+  deviceToken: string;
+  deviceEncryptionKey: string;
+  otpToken: string;
+  demo: boolean;
+}
+
+/**
+ * Mint a device token for Email OTP login. Circle also sends the OTP email to
+ * `email` (using the SMTP provider configured in the Circle console).
+ */
+export async function createEmailDeviceToken(
+  deviceId: string,
+  email: string
+): Promise<EmailDeviceToken> {
+  if (!circleConfigured()) {
+    return { deviceToken: "", deviceEncryptionKey: "", otpToken: "", demo: true };
   }
-  const res = await client.createUserToken({ userId });
+  const c = await client();
+  const res = await c.createDeviceTokenForEmailLogin({ deviceId, email });
   return {
-    userToken: res.data?.userToken ?? "",
-    encryptionKey: res.data?.encryptionKey ?? "",
+    deviceToken: res.data?.deviceToken ?? "",
+    deviceEncryptionKey: res.data?.deviceEncryptionKey ?? "",
+    otpToken: res.data?.otpToken ?? "",
     demo: false,
   };
 }
 
-/** Kick off wallet creation; returns a challengeId the Web SDK resolves. */
-export async function initializeWallet(userToken: string): Promise<{
-  challengeId?: string;
+export interface SocialDeviceToken {
+  deviceToken: string;
+  deviceEncryptionKey: string;
   demo: boolean;
-}> {
-  if (!circleConfigured()) return { demo: true };
+}
 
-  const { initiateUserControlledWalletsClient } = await import(
-    "@circle-fin/user-controlled-wallets"
-  );
-  const client = initiateUserControlledWalletsClient({ apiKey: API_KEY });
-  const res = await client.createUserPinWithWallets({
+/** Mint a device token for social (Google) login. */
+export async function createSocialDeviceToken(
+  deviceId: string
+): Promise<SocialDeviceToken> {
+  if (!circleConfigured()) {
+    return { deviceToken: "", deviceEncryptionKey: "", demo: true };
+  }
+  const c = await client();
+  const res = await c.createDeviceTokenForSocialLogin({ deviceId });
+  return {
+    deviceToken: res.data?.deviceToken ?? "",
+    deviceEncryptionKey: res.data?.deviceEncryptionKey ?? "",
+    demo: false,
+  };
+}
+
+/**
+ * Create an Arc wallet for a freshly-authenticated user. Returns a challengeId
+ * the client SDK executes to finalise creation (no PIN for social/email users).
+ */
+export async function createWalletChallenge(
+  userToken: string
+): Promise<{ challengeId?: string; demo: boolean }> {
+  if (!circleConfigured()) return { demo: true };
+  const c = await client();
+  const res = await c.createWallet({
     userToken,
-    blockchains: ["ARC-TESTNET" as never],
+    blockchains: [WALLET_BLOCKCHAIN as never],
   });
   return { challengeId: res.data?.challengeId, demo: false };
 }
 
-/** Get the Arc wallet address for a user (after wallet initialization). */
+/** Look up the user's Arc wallet address (after creation completes). */
 export async function getUserWalletAddress(
   userToken: string
 ): Promise<string | null> {
   if (!circleConfigured()) return null;
-
-  const { initiateUserControlledWalletsClient } = await import(
-    "@circle-fin/user-controlled-wallets"
-  );
-  const client = initiateUserControlledWalletsClient({ apiKey: API_KEY });
+  const c = await client();
   try {
-    const res = await client.listWallets({ userToken } as never);
-    const wallets: Array<{ blockchain: string; address: string }> =
-      (res.data as { wallets?: Array<{ blockchain: string; address: string }> })
+    const res = await c.listWallets({ userToken } as never);
+    const wallets: Array<{ blockchain?: string; address?: string }> =
+      (res.data as { wallets?: Array<{ blockchain?: string; address?: string }> })
         ?.wallets ?? [];
     const arc =
-      wallets.find((w) => w.blockchain === "ARC-TESTNET") ?? wallets[0];
+      wallets.find((w) => w.blockchain === WALLET_BLOCKCHAIN && w.address) ??
+      wallets.find((w) => w.address);
     return arc?.address ?? null;
   } catch {
     return null;
