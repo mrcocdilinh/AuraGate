@@ -139,7 +139,7 @@ export async function ensureWalletAddress(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ userToken }),
     })
-      .then((r) => r.json())
+      .then(async (r) => { const d = await r.json(); console.log("[init-pin]", r.status, d); return d; })
       .catch(() => null);
 
     if (!pinInit?.challengeId) {
@@ -147,13 +147,16 @@ export async function ensureWalletAddress(
       return null;
     }
 
+    console.log("[ensureWalletAddress] calling execute, challengeId:", pinInit.challengeId);
     try {
       await new Promise<void>((resolve, reject) => {
-        sdk.execute(pinInit.challengeId, (error: { message: string } | undefined) => {
+        sdk.execute(pinInit.challengeId, (error: { message: string } | undefined, result?: unknown) => {
+          console.log("[ensureWalletAddress] execute callback:", { error, result });
           if (error) reject(new Error(error.message));
           else resolve();
         });
       });
+      console.log("[ensureWalletAddress] execute resolved");
     } catch (e) {
       console.error("[ensureWalletAddress] PIN setup failed:", e);
       return null;
