@@ -91,6 +91,7 @@ export default function GoogleCallbackPage() {
             setMessage("Setting up your Arc wallet…");
 
             const { address, error: walletError } = await ensureWalletAddress(
+              sdk,
               result.userToken,
               result.encryptionKey,
               (msg) => setMessage(msg)

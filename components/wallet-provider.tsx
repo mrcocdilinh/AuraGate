@@ -139,6 +139,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           const { address, error: walletError } = await ensureWalletAddress(
+            sdk,
             result.userToken,
             result.encryptionKey
           );

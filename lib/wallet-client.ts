@@ -93,26 +93,29 @@ async function fetchAddress(userToken: string): Promise<string | null> {
 }
 
 /**
- * Run a Circle challenge (PIN setup, wallet creation, etc.) to completion.
+ * Run a Circle challenge (PIN setup, wallet creation, etc.) to completion on
+ * the SAME W3SSdk instance that performed the login.
  *
- * Uses a fresh W3SSdk instance with explicit setAuthentication() rather than
- * reusing the login SDK, because:
- *  - After a redirect-based Google OAuth login, the login SDK's postMessage
- *    subscription is in "login" mode and its execute() callback never fires.
- *  - A fresh instance gets clean event listeners.
- *  - setAuthentication({ userToken, encryptionKey }) supplies the credentials
- *    the challenge iframe needs. NOTE: encryptionKey here is the one returned
- *    in the LOGIN RESULT (SocialLoginResult.encryptionKey), NOT the
- *    deviceEncryptionKey from the device-token step — using the wrong one
- *    yields error 155118 (invalidEncryptionKey).
+ * Why reuse the login SDK rather than `new W3SSdk()`:
+ *  - W3SSdk is a singleton (`if (W3SSdk.instance != null) return instance`),
+ *    so `new W3SSdk()` returns the existing instance anyway — but it first
+ *    re-runs setupInstance(), which overwrites `this.configs` (losing auth)
+ *    and re-triggers execSocialLoginStatusCheck() (re-processing the OAuth
+ *    hash). Reusing the instance avoids those side effects.
+ *
+ * We only need to attach credentials before executing:
+ *  - setAuthentication({ userToken, encryptionKey }) where encryptionKey is the
+ *    one returned in the LOGIN RESULT (SocialLoginResult.encryptionKey), NOT the
+ *    deviceEncryptionKey from the device-token step — the wrong one yields
+ *    error 155118 (invalidEncryptionKey).
  */
 async function executeChallenge(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sdk: any,
   challengeId: string,
   userToken: string,
   encryptionKey: string
 ): Promise<void> {
-  const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
-  const sdk = new W3SSdk({ appSettings: { appId: PUBLIC_APP_ID } });
   sdk.setAuthentication({ userToken, encryptionKey });
   return new Promise<void>((resolve, reject) => {
     sdk.execute(
@@ -140,12 +143,16 @@ export interface EnsureWalletResult {
  * address. For new users on a PIN-based Circle App, this triggers the PIN
  * setup modal (which also creates the ARC-TESTNET wallet in one challenge).
  *
+ * @param sdk            The W3SSdk instance used to log in (reused for the
+ *                       challenge — it is a singleton).
  * @param userToken      Circle user token from the login result.
  * @param encryptionKey  SocialLoginResult/EmailLoginResult `encryptionKey`
  *                       (NOT deviceEncryptionKey). Required to run challenges.
  * @param onProgress     Optional callback for live status (surfaced in the UI).
  */
 export async function ensureWalletAddress(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sdk: any,
   userToken: string,
   encryptionKey: string,
   onProgress?: (msg: string) => void
@@ -198,7 +205,7 @@ export async function ensureWalletAddress(
 
     progress("Opening PIN setup — enter a 6-digit PIN…");
     try {
-      await executeChallenge(pinInit.challengeId, userToken, encryptionKey);
+      await executeChallenge(sdk, pinInit.challengeId, userToken, encryptionKey);
     } catch (e) {
       return {
         address: null,
@@ -209,7 +216,7 @@ export async function ensureWalletAddress(
     // PIN-less app: a plain CREATE_WALLET challenge.
     progress("Finalizing wallet…");
     try {
-      await executeChallenge(init.challengeId, userToken, encryptionKey);
+      await executeChallenge(sdk, init.challengeId, userToken, encryptionKey);
     } catch (e) {
       return {
         address: null,
