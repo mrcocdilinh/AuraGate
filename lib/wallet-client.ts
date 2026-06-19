@@ -116,6 +116,10 @@ async function executeChallenge(
   userToken: string,
   encryptionKey: string
 ): Promise<void> {
+  // Overwrite this.configs WITHOUT loginConfigs so the iframe doesn't see the
+  // stale Google OAuth settings and re-trigger onSocialLoginVerified instead of
+  // onComplete. Must happen before execute() opens the iframe.
+  sdk.updateConfigs({ appSettings: { appId: PUBLIC_APP_ID } });
   sdk.setAuthentication({ userToken, encryptionKey });
   return new Promise<void>((resolve, reject) => {
     sdk.execute(
