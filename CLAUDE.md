@@ -207,9 +207,13 @@ Login (Google redirect / Email OTP)
    KHÔNG phải `deviceEncryptionKey` từ bước device-token. Sai key → error
    155118 (invalidEncryptionKey).
 
-5. **Callback của `sdk.execute()` không fire sau Google OAuth** — login SDK đã
-   unsubscribe postMessage. Fix: `executeChallenge()` luôn tạo **W3SSdk instance
-   MỚI** + `setAuthentication()` rồi mới `execute()` (listener sạch).
+5. **Callback của `sdk.execute()` không fire / modal PIN không hiện sau Google
+   OAuth** — `W3SSdk` là **SINGLETON** (`if (W3SSdk.instance != null) return
+   instance`). `new W3SSdk()` trả instance cũ NHƯNG chạy lại `setupInstance()`
+   → ghi đè `this.configs` (mất authentication) + gọi lại
+   `execSocialLoginStatusCheck()` (xử lý lại OAuth hash). Fix: **dùng LẠI chính
+   SDK login**, chỉ `setAuthentication({ userToken, encryptionKey })` (key từ
+   login result) rồi `execute()` — KHÔNG `new` instance mới.
 
 ### Bài học quan trọng (Circle SDK)
 
@@ -222,6 +226,8 @@ Login (Google redirect / Email OTP)
 - **PIN-based app**: `createWallet` fail tới khi user set PIN. Dùng
   `createUserPinWithWallets` (= REST `POST /v1/w3s/user/initialize`) để set PIN
   + tạo ví trong 1 challenge. Modal PIN do client SDK `execute()` render.
+- **W3SSdk là singleton** — đừng `new` instance thứ 2 để chạy challenge; dùng
+  lại instance login (xem source: `dist/src/index.js` constructor + setupInstance).
 - **Error codes** (xem `@circle-fin/w3s-pw-web-sdk/dist/src/types.d.ts`
   enum `ErrorCode`): 155105 invalidUserToken, 155118 invalidEncryptionKey,
   155112 incorrectUserPin, 155160 SMTP fail, code 2 apiParameterInvalid.
@@ -243,4 +249,7 @@ Login (Google redirect / Email OTP)
 - ✅ Google login: connect thành công, ví **Circle THẬT** trên ARC-TESTNET
   (badge chấm xanh, không nhãn — đã confirm trên production), ổn định theo
   account (không tạo ví mới mỗi lần).
+- ⏳ **Modal PIN lần đầu**: vừa fix singleton W3SSdk (commit 39449ef). Cần test
+  với **Google account MỚI** (chưa từng tạo ví) để confirm modal PIN hiện ra.
+  Account cũ đã có ví → returning user → không hỏi PIN lại (đúng thiết kế).
 - ⏳ Email OTP: chờ DNS Resend verify đầy đủ + SMTP "From" khớp domain.
