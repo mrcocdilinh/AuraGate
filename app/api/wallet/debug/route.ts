@@ -3,7 +3,6 @@ import { circleConfigured, CIRCLE_APP_ID } from "@/lib/circle";
 
 export const dynamic = "force-dynamic";
 
-/** Debug endpoint — call Circle API with a dummy deviceId and return the raw error. */
 export async function GET() {
   const configured = circleConfigured();
   const appId = CIRCLE_APP_ID;
@@ -13,35 +12,52 @@ export async function GET() {
     return NextResponse.json({ configured: false, appId, apiKeyPreview });
   }
 
-  try {
-    const { initiateUserControlledWalletsClient } = await import(
-      "@circle-fin/user-controlled-wallets"
-    );
-    const c = initiateUserControlledWalletsClient({
-      apiKey: process.env.CIRCLE_API_KEY ?? "",
-    });
+  const { initiateUserControlledWalletsClient } = await import(
+    "@circle-fin/user-controlled-wallets"
+  );
+  const c = initiateUserControlledWalletsClient({
+    apiKey: process.env.CIRCLE_API_KEY ?? "",
+  });
 
+  const results: Record<string, unknown> = { configured, appId, apiKeyPreview };
+
+  // Test 1: createDeviceTokenForEmailLogin (email OTP)
+  try {
     const res = await c.createDeviceTokenForEmailLogin({
-      deviceId: "test-device-id-debug-12345678",
+      deviceId: "debug-device-id-00000001",
       email: "debug@auragate.app",
     });
-
-    return NextResponse.json({ ok: true, data: res.data, appId });
+    results.emailToken = { ok: true, data: res.data };
   } catch (e: unknown) {
-    const err = e as {
-      response?: { data?: unknown; status?: number; headers?: unknown };
-      message?: string;
-      code?: string;
-    };
-    return NextResponse.json({
+    const err = e as { response?: { data?: unknown; status?: number }; message?: string; code?: unknown };
+    results.emailToken = {
       ok: false,
-      configured,
-      appId,
-      apiKeyPreview,
       status: err?.response?.status,
       responseData: err?.response?.data,
       message: err?.message,
       code: err?.code,
-    });
+    };
   }
+
+  // Test 2: createWallet with a fake userToken to see the error type
+  // (Will fail with auth error for fake token — but that's expected;
+  //  a config error like "ARC-TESTNET not supported" would have a different code)
+  try {
+    const res = await c.createWallet({
+      userToken: "debug-fake-user-token-00000001",
+      blockchains: ["ARC-TESTNET" as never],
+    });
+    results.createWallet = { ok: true, data: res.data };
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: unknown; status?: number }; message?: string; code?: unknown };
+    results.createWallet = {
+      ok: false,
+      status: err?.response?.status,
+      responseData: err?.response?.data,
+      message: err?.message,
+      code: err?.code,
+    };
+  }
+
+  return NextResponse.json(results);
 }
