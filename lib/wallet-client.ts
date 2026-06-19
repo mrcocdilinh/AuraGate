@@ -92,6 +92,25 @@ async function fetchAddress(userToken: string): Promise<string | null> {
   }
 }
 
+// Use a fresh W3SSdk instance for execute() so we get fresh postMessage
+// event listeners. The login SDK unsubscribes after OAuth completes, so its
+// execute() callback would never fire. setAuthentication() provides credentials.
+async function executeChallengeWithFreshSdk(
+  challengeId: string,
+  userToken: string,
+  encryptionKey?: string
+): Promise<void> {
+  const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+  const freshSdk = new W3SSdk({ appSettings: { appId: PUBLIC_APP_ID } });
+  if (encryptionKey) freshSdk.setAuthentication({ userToken, encryptionKey });
+  return new Promise<void>((resolve, reject) => {
+    freshSdk.execute(challengeId, (error: { message: string } | undefined) => {
+      if (error) reject(new Error(error.message));
+      else resolve();
+    });
+  });
+}
+
 /**
  * After a successful login (userToken in hand), make sure the user has an Arc
  * wallet and return its address. Creates the wallet via an SDK challenge when
@@ -147,16 +166,8 @@ export async function ensureWalletAddress(
       return null;
     }
 
-    console.log("[ensureWalletAddress] calling execute, challengeId:", pinInit.challengeId);
     try {
-      await new Promise<void>((resolve, reject) => {
-        sdk.execute(pinInit.challengeId, (error: { message: string } | undefined, result?: unknown) => {
-          console.log("[ensureWalletAddress] execute callback:", { error, result });
-          if (error) reject(new Error(error.message));
-          else resolve();
-        });
-      });
-      console.log("[ensureWalletAddress] execute resolved");
+      await executeChallengeWithFreshSdk(pinInit.challengeId, userToken, encryptionKey);
     } catch (e) {
       console.error("[ensureWalletAddress] PIN setup failed:", e);
       return null;
@@ -173,12 +184,7 @@ export async function ensureWalletAddress(
 
   if (init?.challengeId) {
     try {
-      await new Promise<void>((resolve, reject) => {
-        sdk.execute(init.challengeId, (error: { message: string } | undefined) => {
-          if (error) reject(new Error(error.message));
-          else resolve();
-        });
-      });
+      await executeChallengeWithFreshSdk(init.challengeId, userToken, encryptionKey);
     } catch (e) {
       console.error("[ensureWalletAddress] wallet challenge failed:", e);
     }
