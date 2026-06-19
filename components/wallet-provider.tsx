@@ -97,6 +97,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ deviceId, email }),
       }).then((r) => r.json());
 
+      // Server returned an API error (Circle unreachable, bad key, etc.).
+      if (tok.error && !tok.demo) {
+        setState({
+          status: "disconnected",
+          demo: false,
+          error: `Circle error: ${tok.error}`,
+        });
+        return;
+      }
+
+      // No Circle credentials configured — fall into demo mode.
       if (tok.demo || !tok.deviceToken) {
         persist({
           status: "connected",
@@ -148,7 +159,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // ── Google login (full-page redirect → /auth/callback) ─────────────────────
+  // ── Google login (full-page redirect → /auth/callback) ──────────────────────
   const loginWithGoogle = useCallback(async () => {
     setState({ status: "connecting", demo: !circleReady() });
 
@@ -175,6 +186,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ deviceId }),
       }).then((r) => r.json());
 
+      // Server returned an API error (Circle unreachable, bad key, etc.).
+      if (tok.error && !tok.demo) {
+        setState({
+          status: "disconnected",
+          demo: false,
+          error: `Circle error: ${tok.error}`,
+        });
+        return;
+      }
+
+      // No Circle credentials configured — fall into demo mode.
       if (tok.demo || !tok.deviceToken) {
         const seed = `google-${Date.now()}`;
         persist({

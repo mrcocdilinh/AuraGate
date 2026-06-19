@@ -86,17 +86,26 @@ export async function createSocialDeviceToken(
 /**
  * Create an Arc wallet for a freshly-authenticated user. Returns a challengeId
  * the client SDK executes to finalise creation (no PIN for social/email users).
+ * Returns `{exists: true}` when the user already has a wallet (409 from Circle).
  */
 export async function createWalletChallenge(
   userToken: string
-): Promise<{ challengeId?: string; demo: boolean }> {
+): Promise<{ challengeId?: string; exists?: boolean; demo: boolean }> {
   if (!circleConfigured()) return { demo: true };
   const c = await client();
-  const res = await c.createWallet({
-    userToken,
-    blockchains: [WALLET_BLOCKCHAIN as never],
-  });
-  return { challengeId: res.data?.challengeId, demo: false };
+  try {
+    const res = await c.createWallet({
+      userToken,
+      blockchains: [WALLET_BLOCKCHAIN as never],
+    });
+    return { challengeId: res.data?.challengeId, demo: false };
+  } catch (e: unknown) {
+    // Circle returns 409 when the user already has a wallet on this blockchain.
+    const status =
+      (e as { response?: { status?: number } })?.response?.status;
+    if (status === 409) return { exists: true, demo: false };
+    throw e;
+  }
 }
 
 /** Look up the user's Arc wallet address (after creation completes). */
@@ -107,9 +116,12 @@ export async function getUserWalletAddress(
   const c = await client();
   try {
     const res = await c.listWallets({ userToken } as never);
-    const wallets: Array<{ blockchain?: string; address?: string }> =
-      (res.data as { wallets?: Array<{ blockchain?: string; address?: string }> })
-        ?.wallets ?? [];
+    // TrimDataResponse strips one .data layer; the SDK type uses a nested data.wallets
+    // structure, so both access paths are tried for forward compatibility.
+    const rawData = res.data as
+      | { wallets?: Array<{ blockchain?: string; address?: string }> }
+      | undefined;
+    const wallets = rawData?.wallets ?? [];
     const arc =
       wallets.find((w) => w.blockchain === WALLET_BLOCKCHAIN && w.address) ??
       wallets.find((w) => w.address);
