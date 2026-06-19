@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from "./wallet-provider";
 import { shortAddr } from "@/lib/format";
 
@@ -9,6 +9,11 @@ export function ConnectButton() {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Auto-close dropdown only on successful connect, not on error.
+  useEffect(() => {
+    if (w.status === "connected" && open) setOpen(false);
+  }, [w.status, open]);
 
   if (w.status === "connected") {
     return (
@@ -54,7 +59,6 @@ export function ConnectButton() {
                 setBusy(true);
                 await w.loginWithGoogle();
                 setBusy(false);
-                setOpen(false);
               }}
             >
               <GoogleIcon /> Continue with Google
@@ -78,7 +82,6 @@ export function ConnectButton() {
                 setBusy(true);
                 await w.loginWithEmail(email);
                 setBusy(false);
-                setOpen(false);
               }}
             >
               Continue with email
