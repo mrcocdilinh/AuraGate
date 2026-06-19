@@ -5,16 +5,18 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#070A12",
-        bg2: "#0B0F1A",
-        panel: "#11151F",
-        panel2: "#161B27",
-        line: "#222838",
-        ink: "#E7ECF5",
-        muted: "#8A93A6",
-        primary: "#4D7CFF",
-        "primary-600": "#3B66E0",
-        mint: "#3FE0B8",
+        bg: "#030A18",
+        bg2: "#06122B",
+        panel: "#0B1A3A",
+        panel2: "#0F2248",
+        line: "#1B2E52",
+        ink: "#F7FAFF",
+        muted: "#9BA8C7",
+        primary: "#3E73FF",
+        "primary-600": "#2B5CE6",
+        mint: "#00CBB8",
+        cyan: "#00F0FF",
+        purple: "#8A4DFF",
         amber: "#FFC56E",
         danger: "#FF6B6B",
       },
@@ -27,7 +29,7 @@ const config: Config = {
         "2xl": "20px",
       },
       boxShadow: {
-        glow: "0 0 0 1px rgba(77,124,255,0.18), 0 8px 40px -12px rgba(77,124,255,0.35)",
+        glow: "0 0 0 1px rgba(0,240,255,0.10), 0 8px 40px -12px rgba(62,115,255,0.40)",
       },
       keyframes: {
         float: {

@@ -8,8 +8,8 @@
 
 html,
 body {
-  background-color: #070a12;
-  color: #e7ecf5;
+  background-color: #030A18;
+  color: #F7FAFF;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -19,9 +19,9 @@ body::before {
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(60rem 40rem at 15% -10%, rgba(77, 124, 255, 0.18), transparent 60%),
-    radial-gradient(50rem 40rem at 95% 0%, rgba(63, 224, 184, 0.12), transparent 55%),
-    radial-gradient(40rem 40rem at 50% 120%, rgba(77, 124, 255, 0.1), transparent 60%);
+    radial-gradient(60rem 40rem at 15% -10%, rgba(0,240,255,0.09), transparent 60%),
+    radial-gradient(50rem 40rem at 95% 0%, rgba(0,203,184,0.07), transparent 55%),
+    radial-gradient(40rem 40rem at 50% 120%, rgba(62,115,255,0.10), transparent 60%);
   pointer-events: none;
 }
 
@@ -48,7 +48,10 @@ body::before {
     @apply w-full rounded-xl border border-line bg-bg2 px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted/70 focus:border-primary/70;
   }
   .gradient-text {
-    @apply bg-gradient-to-r from-primary via-[#7aa0ff] to-mint bg-clip-text text-transparent;
+    background: linear-gradient(135deg, #00F0FF 0%, #00CBB8 42%, #3E73FF 72%, #8A4DFF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
   .hairline {
     @apply border-t border-line;
@@ -56,4 +59,4 @@ body::before {
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: #222838; border-radius: 999px; }
+::-webkit-scrollbar-thumb { background: #1B2E52; border-radius: 999px; }

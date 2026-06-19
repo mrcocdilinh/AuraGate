@@ -5,13 +5,33 @@ import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 
 export const metadata: Metadata = {
-  title: "AuraGate — agent payment marketplace on Arc",
+  title: "AuraGate — The gateway for AI agents to move value.",
   description:
-    "Discovery & payment marketplace for the agentic economy on Arc. AI agents pay USDC per request via x402 + Circle Gateway, with email/Google login and on-chain receipts.",
+    "AI agent payments gateway built on stablecoin rails. Discover & pay for AI services via x402 nanopayments on Arc — no API keys, no subscriptions, just USDC.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-64.png", sizes: "64x64", type: "image/png" },
+    ],
+    apple: { url: "/apple-icon.png", sizes: "256x256", type: "image/png" },
+  },
+  openGraph: {
+    title: "AuraGate — The gateway for AI agents to move value.",
+    description: "AI agent payments gateway built on stablecoin rails.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AuraGate — The gateway for AI agents to move value.",
+    description: "AI agent payments gateway built on stablecoin rails.",
+    images: ["/og-image.png"],
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#070A12",
+  themeColor: "#030A18",
   width: "device-width",
   initialScale: 1,
 };

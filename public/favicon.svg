@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+  <linearGradient id="agGradient" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#00F0FF"/>
+    <stop offset="42%" stop-color="#00CBB8"/>
+    <stop offset="72%" stop-color="#3E73FF"/>
+    <stop offset="100%" stop-color="#8A4DFF"/>
+  </linearGradient>
+  <linearGradient id="railGradient" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#00F0FF" stop-opacity="0.15"/>
+    <stop offset="28%" stop-color="#00F0FF"/>
+    <stop offset="58%" stop-color="#3E73FF"/>
+    <stop offset="100%" stop-color="#8A4DFF"/>
+  </linearGradient>
+  <radialGradient id="bgGlow" cx="50%" cy="42%" r="62%">
+    <stop offset="0%" stop-color="#123D7D" stop-opacity="0.52"/>
+    <stop offset="62%" stop-color="#06122B" stop-opacity="0.10"/>
+    <stop offset="100%" stop-color="#030A18" stop-opacity="0"/>
+  </radialGradient>
+  <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="14" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+  <filter id="tinyGlow" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="5" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs><rect width="1024" height="1024" rx="230" fill="#06122B"/><g transform="translate(122,98) scale(.76)">
+        <g>
+          <line x1="105" y1="570" x2="920" y2="570" stroke="url(#railGradient)" stroke-width="16" stroke-linecap="round" opacity="0.18"/>
+          <line x1="105" y1="570" x2="920" y2="570" stroke="#00F0FF" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="885" cy="570" r="31" fill="#06122B" stroke="#00F0FF" stroke-width="7"/>
+          <circle cx="885" cy="570" r="7" fill="#00F0FF"/>
+          <path d="M877 570h16M885 562v16" stroke="#00F0FF" stroke-width="4" stroke-linecap="round"/>
+        </g>
+        
+      <path fill-rule="evenodd" d="
+        M512 112
+        C552 112 585 135 604 176
+        L843 703
+        C854 729 835 758 806 758
+        H682
+        L615 606
+        V516
+        C615 458 569 412 512 412
+        C455 412 409 458 409 516
+        V606
+        L342 758
+        H218
+        C189 758 170 729 181 703
+        L420 176
+        C439 135 472 112 512 112
+        Z
+        M512 380
+        C431 380 365 445 365 526
+        V766
+        H659
+        V526
+        C659 445 593 380 512 380
+        Z" fill="url(#agGradient)"/>
+    </g></svg>
