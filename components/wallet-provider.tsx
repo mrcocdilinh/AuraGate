@@ -27,7 +27,6 @@ interface WalletCtx extends WalletState {
 
 const Ctx = createContext<WalletCtx | null>(null);
 
-/** Deterministic demo address from a string (no real key — demo mode only). */
 function demoAddress(seed: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < seed.length; i++) {
@@ -44,6 +43,34 @@ function demoAddress(seed: string): string {
 }
 
 const KEY = "auragate.wallet";
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function fetchWalletAddress(userToken: string): Promise<string | null> {
+  try {
+    const res = await fetch("/api/wallet/address", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userToken }),
+    }).then((r) => r.json());
+    return res?.address ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Retry fetching wallet address up to `attempts` times, with delay between. */
+async function fetchWalletAddressWithRetry(
+  userToken: string,
+  attempts = 4,
+  delayMs = 1500
+): Promise<string | null> {
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) await sleep(delayMs);
+    const addr = await fetchWalletAddress(userToken);
+    if (addr) return addr;
+  }
+  return null;
+}
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<WalletState>({
@@ -73,7 +100,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const connect = async (method: LoginMethod, email?: string) => {
     persist({ status: "connecting", demo: true });
 
-    const userId = email ?? `google-${Date.now()}`;
+    // For Google, use a stable userId stored in localStorage so the same
+    // Circle user is reused across sessions.
+    let userId: string;
+    if (method === "google") {
+      const stored = localStorage.getItem("auragate.google-uid");
+      userId = stored ?? `google-${crypto.randomUUID()}`;
+      localStorage.setItem("auragate.google-uid", userId);
+    } else {
+      userId = email!;
+    }
 
     let tokenRes: {
       userToken: string;
@@ -104,6 +140,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      // --- Returning user: wallet already exists ---
+      const existing = await fetchWalletAddress(tokenRes.userToken);
+      if (existing) {
+        persist({ status: "connected", address: existing, email, method, demo: false });
+        return;
+      }
+
+      // --- New user: run PIN challenge to create wallet ---
       const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
       const sdk = new W3SSdk();
       sdk.setAppSettings({ appId: tokenRes.appId });
@@ -127,36 +171,25 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      const addrRes = await fetch("/api/wallet/address", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userToken: tokenRes.userToken }),
-      }).then((r) => r.json());
+      // Circle needs a moment to finalise wallet creation after PIN is set
+      await sleep(2000);
+
+      // Retry fetching the new wallet address
+      const address = await fetchWalletAddressWithRetry(tokenRes.userToken, 4, 1500);
 
       persist({
         status: "connected",
-        address: addrRes.address ?? demoAddress(userId),
+        address: address ?? demoAddress(userId),
         email,
         method,
-        demo: false,
+        demo: !address,
       });
-    } catch {
-      const addrRes = await fetch("/api/wallet/address", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ userToken: tokenRes.userToken }),
-      })
-        .then((r) => r.json())
-        .catch(() => null);
-
-      if (addrRes?.address) {
-        persist({
-          status: "connected",
-          address: addrRes.address,
-          email,
-          method,
-          demo: false,
-        });
+    } catch (e) {
+      console.error("[wallet] connect error:", e);
+      // Last-ditch attempt: maybe the wallet exists despite the error
+      const addr = await fetchWalletAddress(tokenRes.userToken);
+      if (addr) {
+        persist({ status: "connected", address: addr, email, method, demo: false });
       } else {
         persist({ status: "disconnected", demo: true });
       }
