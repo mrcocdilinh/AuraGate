@@ -60,15 +60,17 @@ export async function GET() {
   // Test 3: createUserPinWithWallets (PIN init + wallet creation for PIN-based apps)
   try {
     const rawC = c as unknown as {
-      createUserPinWithWallets: (
-        userToken: string,
-        body: { idempotencyKey: string; blockchains: string[] }
-      ) => Promise<{ data?: unknown }>;
+      createUserPinWithWallets: (body: {
+        userToken: string;
+        idempotencyKey: string;
+        blockchains: string[];
+      }) => Promise<{ data?: unknown }>;
     };
-    const res = await rawC.createUserPinWithWallets(
-      "debug-fake-user-token-00000001",
-      { idempotencyKey: crypto.randomUUID(), blockchains: ["ARC-TESTNET"] }
-    );
+    const res = await rawC.createUserPinWithWallets({
+      userToken: "debug-fake-user-token-00000001",
+      idempotencyKey: crypto.randomUUID(),
+      blockchains: ["ARC-TESTNET"],
+    });
     results.initPin = { ok: true, data: res.data };
   } catch (e: unknown) {
     const err = e as { response?: { data?: unknown; status?: number }; message?: string; code?: unknown };

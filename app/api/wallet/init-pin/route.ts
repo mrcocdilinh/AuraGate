@@ -21,11 +21,13 @@ export async function POST(req: NextRequest) {
       apiKey: process.env.CIRCLE_API_KEY ?? "",
     });
     const res = await (c as unknown as {
-      createUserPinWithWallets: (
-        userToken: string,
-        body: { idempotencyKey: string; blockchains: string[] }
-      ) => Promise<{ data?: { challengeId?: string } }>;
-    }).createUserPinWithWallets(userToken, {
+      createUserPinWithWallets: (body: {
+        userToken: string;
+        idempotencyKey: string;
+        blockchains: string[];
+      }) => Promise<{ data?: { challengeId?: string } }>;
+    }).createUserPinWithWallets({
+      userToken,
       idempotencyKey: crypto.randomUUID(),
       blockchains: ["ARC-TESTNET"],
     });
