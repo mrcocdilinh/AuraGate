@@ -138,7 +138,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             });
             return;
           }
-          const address = await ensureWalletAddress(sdk, result.userToken);
+          const address = await ensureWalletAddress(sdk, result.userToken, tok.deviceEncryptionKey);
           persist({
             status: "connected",
             address: address ?? demoAddress(email),

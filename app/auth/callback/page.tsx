@@ -83,7 +83,7 @@ export default function GoogleCallbackPage() {
             setPhase("creating");
             setMessage("Setting up your Arc wallet…");
 
-            const address = await ensureWalletAddress(sdk, result.userToken);
+            const address = await ensureWalletAddress(sdk, result.userToken, pending.deviceEncryptionKey);
             saveWallet({
               status: "connected",
               address: address ?? demoAddress(stableSeed),
