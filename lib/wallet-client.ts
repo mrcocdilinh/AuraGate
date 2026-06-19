@@ -117,6 +117,40 @@ export async function ensureWalletAddress(
 
   if (init?.error) {
     console.error("[ensureWalletAddress] createWallet failed:", init.error, init.detail ?? "");
+
+    // PIN-based Circle App: user hasn't set up a PIN yet.
+    // createUserPinWithWallets sets PIN + creates ARC-TESTNET wallet in one step.
+    const needsPin = (init.detail as string | undefined)?.toLowerCase().includes("pin");
+    if (!needsPin) return null; // different error — skip polling
+
+    const pinInit = await fetch("/api/wallet/init-pin", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ userToken }),
+    })
+      .then((r) => r.json())
+      .catch(() => null);
+
+    if (!pinInit?.challengeId) {
+      console.error("[ensureWalletAddress] init-pin failed:", pinInit);
+      return null;
+    }
+
+    // Show PIN setup modal; wallet is created on challenge completion.
+    await new Promise<void>((resolve, reject) => {
+      sdk.execute(pinInit.challengeId, (error: { message: string } | undefined) => {
+        if (error) reject(new Error(error.message));
+        else resolve();
+      });
+    });
+
+    // Wallet creation is async — poll after PIN setup.
+    for (let i = 0; i < 6; i++) {
+      await sleep(1500);
+      const addr = await fetchAddress(userToken);
+      if (addr) return addr;
+    }
+    return null;
   }
 
   if (init?.challengeId) {
