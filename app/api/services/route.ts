@@ -5,18 +5,25 @@ import type { ServiceCategory } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json({ services: listServices() });
+  return NextResponse.json({ services: await listServices() });
 }
 
 export async function POST(req: NextRequest) {
   const b = await req.json().catch(() => null);
   if (!b || !b.name || !b.sellerAddress || !b.price) {
-    return NextResponse.json({ error: "name, sellerAddress and price are required" }, { status: 400 });
+    return NextResponse.json(
+      { error: "name, sellerAddress and price are required" },
+      { status: 400 }
+    );
   }
 
-  const slug = String(b.slug ?? b.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 48);
+  const slug = String(b.slug ?? b.name)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 48);
 
-  const svc = addService({
+  const svc = await addService({
     slug,
     name: String(b.name),
     description: String(b.description ?? ""),

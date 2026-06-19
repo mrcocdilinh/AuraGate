@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const origin = new URL(req.url).origin;
-  const services = listServices().map((s) => ({
+  const services = (await listServices()).map((s) => ({
     id: s.slug,
     name: s.name,
     description: s.description,
@@ -20,10 +20,23 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     name: "AuraGate",
-    description: "Discovery & payment marketplace for the agentic economy on Arc. Pay USDC per request via x402 + Circle Gateway.",
+    description:
+      "Discovery & payment marketplace for the agentic economy on Arc. Pay USDC per request via x402 + Circle Gateway.",
     protocol: { name: "x402", version: 2, settlement: "circle-gateway" },
-    network: { name: "Arc Testnet", chainId: ARC.chainId, caip2: ARC.caip2, asset: "USDC", assetAddress: ARC.usdcAddress, explorer: ARC.explorer },
-    payment: { mode: x402Info.mode, facilitator: x402Info.facilitatorUrl, instructions: "Request the service URL. On 402, sign the X-PAYMENT authorization (EIP-3009) for the advertised amount and retry. A signed receipt is returned in the x-receipt-id header." },
+    network: {
+      name: "Arc Testnet",
+      chainId: ARC.chainId,
+      caip2: ARC.caip2,
+      asset: "USDC",
+      assetAddress: ARC.usdcAddress,
+      explorer: ARC.explorer,
+    },
+    payment: {
+      mode: x402Info.mode,
+      facilitator: x402Info.facilitatorUrl,
+      instructions:
+        "Request the service URL. On 402, sign the X-PAYMENT authorization (EIP-3009) for the advertised amount and retry. A signed receipt is returned in the x-receipt-id header.",
+    },
     services,
   });
 }
