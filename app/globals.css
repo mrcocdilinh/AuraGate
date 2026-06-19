@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: #070a12;
+  color: #e7ecf5;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(60rem 40rem at 15% -10%, rgba(77, 124, 255, 0.18), transparent 60%),
+    radial-gradient(50rem 40rem at 95% 0%, rgba(63, 224, 184, 0.12), transparent 55%),
+    radial-gradient(40rem 40rem at 50% 120%, rgba(77, 124, 255, 0.1), transparent 60%);
+  pointer-events: none;
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-panel/70 backdrop-blur-sm;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition active:scale-[0.98] disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white hover:bg-primary-600 shadow-glow;
+  }
+  .btn-ghost {
+    @apply btn border border-line bg-panel2/60 text-ink hover:border-primary/60;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2/60 px-2.5 py-1 text-xs font-medium text-muted;
+  }
+  .input {
+    @apply w-full rounded-xl border border-line bg-bg2 px-3.5 py-2.5 text-sm text-ink outline-none placeholder:text-muted/70 focus:border-primary/70;
+  }
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary via-[#7aa0ff] to-mint bg-clip-text text-transparent;
+  }
+  .hairline {
+    @apply border-t border-line;
+  }
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #222838; border-radius: 999px; }
