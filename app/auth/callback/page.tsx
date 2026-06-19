@@ -71,10 +71,14 @@ export default function GoogleCallbackPage() {
               return;
             }
 
-            const email =
-              "oAuthInfo" in result
-                ? result.oAuthInfo?.socialUserInfo?.email
-                : undefined;
+            const oAuth = "oAuthInfo" in result ? result.oAuthInfo : undefined;
+            const email = oAuth?.socialUserInfo?.email;
+
+            // Use a stable identity seed so the same Google account always
+            // maps to the same fallback address across sessions.
+            // socialUserUUID is Circle's stable per-user ID for this Google account.
+            const stableSeed =
+              oAuth?.socialUserUUID ?? email ?? result.userToken;
 
             setPhase("creating");
             setMessage("Setting up your Arc wallet…");
@@ -82,7 +86,7 @@ export default function GoogleCallbackPage() {
             const address = await ensureWalletAddress(sdk, result.userToken);
             saveWallet({
               status: "connected",
-              address: address ?? demoAddress(result.userToken),
+              address: address ?? demoAddress(stableSeed),
               email,
               method: "google",
               demo: !address,

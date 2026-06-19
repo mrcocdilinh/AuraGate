@@ -115,6 +115,10 @@ export async function ensureWalletAddress(
     .then((r) => r.json())
     .catch(() => null);
 
+  if (init?.error) {
+    console.error("[ensureWalletAddress] createWallet failed:", init.error, init.detail ?? "");
+  }
+
   if (init?.challengeId) {
     await new Promise<void>((resolve, reject) => {
       sdk.execute(init.challengeId, (error: { message: string } | undefined) => {
