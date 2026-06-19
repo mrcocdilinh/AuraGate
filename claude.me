@@ -1,0 +1,142 @@
+# claude.me — AuraGate Build Guide & AI Coding Rules
+
+File này là hướng dẫn cho Claude (và dev) mỗi khi bắt đầu session mới.
+Tổng hợp từ: behavioral guidelines (Karpathy/forrestchang) + context riêng của AuraGate.
+
+---
+
+## Phần 1 — Nguyên tắc làm việc với Claude
+
+*(Nguồn: https://github.com/forrestchang/andrej-karpathy-skills)*
+
+### 1. Suy nghĩ trước khi code
+
+- **Không giả định. Không giấu sự mơ hồ. Phải nêi rõ đánh đổi.**
+- Trước khi implement: nêu giả định rõ ràng. Nếu không chắc, hỏi.
+- Nếu có nhiều cách hiểu, đưa ra tất cả — không tự chọn im lặng.
+- Nếu có cách đơn giản hơn, nói ra. Push back khi cần thiết.
+- Nếu không rõ, dừng lại. Gọi tên vấn đề. Hỏi.
+
+### 2. Đơn giản trước
+
+- **Ít code nhất giải quyết được vấn đề. Không suy đoán tương lai.**
+- Không thêm tính năng ngoài yêu cầu.
+- Không abstract cho code chỉ dùng 1 lần.
+- Không thêm “flexibility” không ai yêu cầu.
+- Nếu viết 200 dòng mà có thể 50 dòng, viết lại.
+
+### 3. Thay đổi phầu thuật — chạm đúng vị trí cần sửa
+
+- Không “iện” code lân cận không liên quan.
+- Không refactor thứ không bị hỏng.
+- Match style hiện tại, dù bạn làm khác.
+- Nếu thấy dead code không liên quan — mention, không xóa.
+- Kiểm tra: Mọi dòng thay đổi phải trace trực tiếp về yêu cầu của user.
+
+### 4. Execution theo mục tiêu rõ ràng
+
+- Biến task thành tiêu chí kiểm tra được:
+  - “Thêm validation” → “Viết test cho invalid input, rồi make it pass”
+  - “Fix bug” → “Repr reproduce được, rồi fix”
+- Với task nhiều bước, đưa plan ngắn trước:
+  ```
+  1. [Bước] → verify: [kiểm tra]
+  2. [Bước] → verify: [kiểm tra]
+  ```
+
+---
+
+## Phần 2 — Kỹ năng cần để build AuraGate
+
+### Frontend (Next.js 16 App Router)
+
+| Kỹ năng | Mức ứng dụng trong AuraGate |
+|---|---|
+| React Server Components | `app/services/[slug]/page.tsx` — fetch data server-side |
+| Client Components (`"use client"`) | Marketplace filter, TryService, Dashboard, Playground |
+| `useEffect` + polling | Dashboard và Receipts tự refresh mỗi 5 giây |
+| Next.js API Routes | Tất cả `/api/*` endpoints |
+| Tailwind CSS utility classes | Tonàn bộ UI, dark theme, Arc palette |
+| TypeScript strict mode | Bắt buộc — `tsconfig.json` strict: true |
+
+### Payment / x402
+
+| Kỹ năng | Mức ứng dụng |
+|---|---|
+| HTTP 402 flow | `lib/x402.ts` — buildChallenge + settlePayment |
+| EIP-3009 TransferWithAuthorization | Buyer ký X-PAYMENT header |
+| `@circle-fin/x402-batching` | createGatewayMiddleware, verify, settle |
+| GatewayClient (live mode) | `agent/run.mts` — deposit + pay |
+| Base64 header encoding | decodePaymentHeader trong x402.ts |
+
+### Blockchain / Web3
+
+| Kỹ năng | Mức ứng dụng |
+|---|---|
+| EVM basics | Arc Testnet là EVM-compatible |
+| Solidity 0.8.24 | `contracts/ReceiptRegistry.sol` |
+| Hardhat | compile + deploy lên Arc Testnet |
+| viem | EVM interactions phía client |
+| CAIP-2 chain ID | `eip155:5042002` dùng trong x402 challenge |
+| USDC (6 decimals) | `toAtomicUSDC()` — 0.01 USD = 10000 atomic units |
+
+### Circle SDK
+
+| Kỹ năng | Mức ứng dụng |
+|---|---|
+| User-Controlled Wallets | `lib/circle.ts` — createSessionToken, initializeWallet |
+| w3s-pw-web-sdk | Client-side wallet challenge resolution |
+| Demo mode | Khi chưa có CIRCLE_API_KEY, tự simulate |
+
+### Agent / AI
+
+| Kỹ năng | Mức ứng dụng |
+|---|---|
+| Autonomous HTTP agent | `agent/run.mts` — catalog → 402 → pay → data loop |
+| Anthropic SDK | maybeSummarise() — Claude tạo report từ API results |
+| Spending limit logic | `LIMIT` env, skip nếu price > budget còn lại |
+| tsx (TypeScript executor) | Chạy `.mts` file trực tiếp không cần compile |
+
+---
+
+## Phần 3 — Cách build từng tính năng còn lại
+
+### Deploy ReceiptRegistry lên Arc Testnet
+
+```
+1. Có DEPLOYER_PRIVATE_KEY và USDC testnet (faucet từ Arc docs)
+2. npm run compile          → verify: artifacts/contracts/ReceiptRegistry.sol/ReceiptRegistry.json tồn tại
+3. npm run deploy:receipts  → verify: in ra địa chỉ 0x...
+4. Set NEXT_PUBLIC_RECEIPT_REGISTRY=0x... vào .env.local
+5. Test: gọi recordReceipt() từ `/api/premium/[service]` sau khi settle
+```
+
+### Kết nối on-chain receipt write
+
+```
+1. Mở lib/x402.ts — sau settle() có transaction hash
+2. Mở app/api/premium/[service]/route.ts — sau recordReceipt() in-memory
+3. Thêm call vào ReceiptRegistry.recordReceipt() bằng viem walletClient
+4. Lưu onchainTx hash vào Receipt record
+5. verify: receipts page hiển link explorer thật
+```
+
+### Supabase persistence
+
+```
+1. lib/store.ts có 3 bảng: services, payments, receipts
+2. Tạo Supabase project, tạo tables match interfaces trong lib/types.ts
+3. Thay từng function trong store.ts bằng Supabase client calls
+4. verify: data tồn tại sau khi restart server
+```
+
+---
+
+## Phần 4 — Những thứ KHÔNG làm (theo guidelines)
+
+- Không thay đổi style/formatting của file khi chỉ fix 1 bug nhỏ
+- Không thêm abstractions cho thứ chỉ dùng 1 chỗ
+- Không convert in-memory store sang Supabase “nếu có thời gian” — chỉ khi user yêu cầu
+- Không thêm error handling cho trường hợp không xảy ra (vd: Arc RPC luôn đúng format)
+- Không deploy lên mainnet, không push private key lên GitHub
+- Không tạo PR trừ khi user yêu cầu rõ
