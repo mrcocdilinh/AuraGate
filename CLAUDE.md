@@ -159,3 +159,87 @@ npm run deploy:receipts  # deploy ReceiptRegistry lên Arc Testnet
 - `tsconfig.json` exclude `agent/` vì agent dùng `tsx` riêng.
 - `next-env.d.ts` trong `.gitignore` — Next.js tự generate.
 - AuraPredict seller address là placeholder — cần thay bằng địa chỉ thật khi live.
+
+---
+
+## Lịch sử debug Circle Wallet Auth (2026-06)
+
+Quá trình fix 2 bug đăng nhập Circle: (1) Google login tạo ví mới mỗi lần,
+(2) Email login lỗi 502. Ghi lại để khỏi lặp lại sai lầm.
+
+### Kiến trúc wallet hiện tại
+
+```
+Login (Google redirect / Email OTP)
+  └─ W3SSdk trả về { userToken, encryptionKey }   ← encryptionKey từ LOGIN RESULT
+       └─ ensureWalletAddress(userToken, encryptionKey, onProgress?)   [lib/wallet-client.ts]
+            ├─ fetchAddress → POST /api/wallet/address (getUserWalletAddress → listWallets)
+            │     └─ có ví → trả address (returning user)
+            ├─ chưa có → POST /api/wallet/create-wallet (createWalletChallenge)
+            │     ├─ PIN-less app → trả challengeId → executeChallenge
+            │     └─ PIN-based app → 502 "User has not set up a PIN yet"
+            │            └─ POST /api/wallet/init-pin (createUserPinWithWallets)
+            │                  → challengeId → executeChallenge (hiện modal PIN)
+            └─ poll fetchAddress (8 × 1.5s) cho tới khi ví xuất hiện
+  └─ trả { address, error? }; UI show progress + lỗi on-screen (auth/callback)
+```
+
+### Các bug đã fix (gốc rễ)
+
+1. **Google tạo ví mới mỗi session** — fallback dùng `demoAddress(userToken)`
+   nhưng `userToken` là JWT mới mỗi lần login. Fix: seed ổn định
+   `oAuthInfo.socialUserUUID ?? email ?? userToken` (`app/auth/callback/page.tsx`).
+
+2. **Email 502 = SMTP error (code 155160)** — Circle gửi OTP qua SMTP (Resend)
+   nhưng "From" address chưa verify domain. Fix: verify `auragate.app` trong
+   Resend (DKIM/SPF/DMARC ở Namecheap), set SMTP "From" =
+   `noreply@auragate.app` (khớp domain đã verify), password = Resend API key.
+   DKIM "Verified" là đủ để gửi; SPF/MX "Pending" không chặn.
+
+3. **`createUserPinWithWallets` code 2 "API parameter invalid"** — gọi sai cú
+   pháp `(userToken, body)`. Flat client nhận **1 object duy nhất**:
+   `{ userToken, idempotencyKey, blockchains }`. Sau fix → code 155105
+   (invalid token với fake token = đúng).
+
+4. **"Invalid credentials" / "PIN setup failed" khi execute challenge** — DÙNG
+   SAI KEY. `setAuthentication({ userToken, encryptionKey })` cần
+   `encryptionKey` từ **login result** (`SocialLoginResult.encryptionKey`),
+   KHÔNG phải `deviceEncryptionKey` từ bước device-token. Sai key → error
+   155118 (invalidEncryptionKey).
+
+5. **Callback của `sdk.execute()` không fire sau Google OAuth** — login SDK đã
+   unsubscribe postMessage. Fix: `executeChallenge()` luôn tạo **W3SSdk instance
+   MỚI** + `setAuthentication()` rồi mới `execute()` (listener sạch).
+
+### Bài học quan trọng (Circle SDK)
+
+- **2 encryptionKey khác nhau**: `deviceEncryptionKey` (device-token step, dùng
+  lúc OAuth handshake) vs `encryptionKey` (login result, dùng cho
+  `setAuthentication` để chạy challenge). Đừng nhầm.
+- **Flat client** (`initiateUserControlledWalletsClient`) — mọi method nhận
+  **1 object** (vd `createWallet({ userToken, blockchains })`,
+  `createUserPinWithWallets({ userToken, idempotencyKey, blockchains })`).
+- **PIN-based app**: `createWallet` fail tới khi user set PIN. Dùng
+  `createUserPinWithWallets` (= REST `POST /v1/w3s/user/initialize`) để set PIN
+  + tạo ví trong 1 challenge. Modal PIN do client SDK `execute()` render.
+- **Error codes** (xem `@circle-fin/w3s-pw-web-sdk/dist/src/types.d.ts`
+  enum `ErrorCode`): 155105 invalidUserToken, 155118 invalidEncryptionKey,
+  155112 incorrectUserPin, 155160 SMTP fail, code 2 apiParameterInvalid.
+- **Debug endpoint** `GET /api/wallet/debug` — gọi thẳng Circle API với token
+  giả để đọc error code thật (emailToken / createWallet / initPin).
+- **`/api/wallet/address` trả 404 khi chưa có ví** — đúng thiết kế,
+  `fetchAddress` bắt và trả null.
+
+### UX diagnostic đã thêm
+
+- `ensureWalletAddress` trả `{ address, error? }` + `onProgress` callback;
+  trang `auth/callback` show từng bước + lỗi **on-screen** (không cần đọc
+  console). Lỗi wallet-setup → `failPersist` (không auto-redirect để đọc được).
+- Badge ví connected: chấm **xanh** = ví Circle thật, chấm **vàng + "DEMO"** =
+  demo fallback (`components/connect-button.tsx`).
+
+### Trạng thái
+
+- ✅ Google login: connect thành công, ví ổn định theo account (không tạo mới).
+- ⏳ Cần confirm badge xanh (ví thật) vs vàng (demo) sau deploy mới nhất.
+- ⏳ Email OTP: chờ DNS Resend verify đầy đủ + SMTP "From" khớp domain.
