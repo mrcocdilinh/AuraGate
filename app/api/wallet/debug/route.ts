@@ -40,8 +40,6 @@ export async function GET() {
   }
 
   // Test 2: createWallet with a fake userToken to see the error type
-  // (Will fail with auth error for fake token — but that's expected;
-  //  a config error like "ARC-TESTNET not supported" would have a different code)
   try {
     const res = await c.createWallet({
       userToken: "debug-fake-user-token-00000001",
@@ -51,6 +49,30 @@ export async function GET() {
   } catch (e: unknown) {
     const err = e as { response?: { data?: unknown; status?: number }; message?: string; code?: unknown };
     results.createWallet = {
+      ok: false,
+      status: err?.response?.status,
+      responseData: err?.response?.data,
+      message: err?.message,
+      code: err?.code,
+    };
+  }
+
+  // Test 3: createUserPinWithWallets (PIN init + wallet creation for PIN-based apps)
+  try {
+    const rawC = c as unknown as {
+      createUserPinWithWallets: (
+        userToken: string,
+        body: { idempotencyKey: string; blockchains: string[] }
+      ) => Promise<{ data?: unknown }>;
+    };
+    const res = await rawC.createUserPinWithWallets(
+      "debug-fake-user-token-00000001",
+      { idempotencyKey: crypto.randomUUID(), blockchains: ["ARC-TESTNET"] }
+    );
+    results.initPin = { ok: true, data: res.data };
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: unknown; status?: number }; message?: string; code?: unknown };
+    results.initPin = {
       ok: false,
       status: err?.response?.status,
       responseData: err?.response?.data,
