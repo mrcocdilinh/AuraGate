@@ -163,6 +163,12 @@ export async function processPayment(
     };
   }
 
+  // Surface the Gateway failure reason in the server log — the buyer client
+  // only echoes `error`, swallowing the `reason` that explains *why*.
+  if (statusCode >= 400) {
+    console.error(`[x402 live] ${statusCode} from gateway.require:`, body || "(empty)");
+  }
+
   return {
     kind: "challenge",
     response: new Response(body || "{}", { status: statusCode, headers: resHeaders }),
