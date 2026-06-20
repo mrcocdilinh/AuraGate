@@ -3,7 +3,10 @@
  * npm run agent                 # uses AGENT_TARGET_URL (default localhost)
  * npm run agent -- --limit 0.05 # spending cap in USDC
  */
-import "dotenv/config";
+import { config } from "dotenv";
+// Load .env.local first (Next.js convention), then fall back to .env.
+config({ path: ".env.local" });
+config();
 
 const TARGET = process.env.AGENT_TARGET_URL ?? "http://localhost:3000";
 const MODE = (process.env.X402_MODE ?? "mock").toLowerCase();
