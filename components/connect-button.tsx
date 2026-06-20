@@ -21,7 +21,7 @@ export function ConnectButton() {
         <button
           className="badge !text-ink cursor-pointer hover:border-primary/40 transition"
           title="Click to copy address"
-          onClick={() => navigator.clipboard.writeText(w.address)}
+          onClick={() => navigator.clipboard.writeText(w.address ?? "")}
         >
           <span className={`h-2 w-2 rounded-full ${w.demo ? "bg-amber-400" : "bg-mint"}`} />
           {shortAddr(w.address)}

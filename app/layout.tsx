@@ -3,6 +3,7 @@ import "./globals.css";
 import { WalletProvider } from "@/components/wallet-provider";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
+import { TestnetBanner } from "@/components/testnet-banner";
 
 export const metadata: Metadata = {
   title: "AuraGate — The gateway for AI agents to move value.",
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className="min-h-screen font-sans">
         <WalletProvider>
+          <TestnetBanner />
           <Nav />
           <main>{children}</main>
           <Footer />

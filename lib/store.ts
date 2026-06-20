@@ -1,7 +1,18 @@
 import { randomUUID } from "crypto";
 import type { Payment, Receipt, Service, SellerStats } from "./types";
 import { SEED_SERVICES } from "./services-seed";
+import { SEED_RECEIPTS } from "./receipts-seed";
 import { db } from "./supabase";
+
+/** Build seed receipts with stable ids + staggered timestamps (newest first). */
+function seedReceiptRows(): Receipt[] {
+  const base = Date.now();
+  return SEED_RECEIPTS.map((r, i) => ({
+    ...r,
+    id: `seed-receipt-${i + 1}`,
+    createdAt: new Date(base - i * 47 * 60_000).toISOString(),
+  }));
+}
 
 // ─── Row mappers ─────────────────────────────────────────────────────────────
 
@@ -67,7 +78,11 @@ interface DB {
 const g = globalThis as unknown as { __ag?: DB };
 function mem(): DB {
   if (!g.__ag)
-    g.__ag = { services: structuredClone(SEED_SERVICES), payments: [], receipts: [] };
+    g.__ag = {
+      services: structuredClone(SEED_SERVICES),
+      payments: [],
+      receipts: seedReceiptRows(),
+    };
   return g.__ag;
 }
 
@@ -108,6 +123,24 @@ async function seedSupabase(): Promise<void> {
     created_at: s.createdAt,
   }));
   await db.from("services").upsert(rows, { onConflict: "slug" });
+}
+
+/** Seed demo receipts into Supabase once (only when the table is empty). */
+async function seedReceiptsSupabase(): Promise<void> {
+  if (!db) return;
+  const rows = seedReceiptRows().map((r) => ({
+    id: randomUUID(),
+    payment_id: r.paymentId,
+    service_slug: r.serviceSlug,
+    payer: r.payer,
+    amount: r.amount,
+    result_hash: r.resultHash,
+    rating: r.rating ?? null,
+    onchain_tx: null,
+    block_number: null,
+    created_at: r.createdAt,
+  }));
+  await db.from("receipts").insert(rows);
 }
 
 export async function listServices(): Promise<Service[]> {
@@ -250,7 +283,12 @@ export async function listReceipts(): Promise<Receipt[]> {
   if (db) {
     const { data, error } = await db.from("receipts").select("*").order("created_at", { ascending: false }).limit(200);
     if (error) throw error;
-    return (data ?? []).map(rowToReceipt);
+    if (!data || data.length === 0) {
+      await seedReceiptsSupabase();
+      const { data: seeded } = await db.from("receipts").select("*").order("created_at", { ascending: false }).limit(200);
+      return (seeded ?? []).map(rowToReceipt);
+    }
+    return data.map(rowToReceipt);
   }
   return mem().receipts;
 }
