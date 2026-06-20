@@ -53,25 +53,47 @@ async function payLive(s: CatalogService, gateway: any): Promise<unknown> {
 }
 
 async function maybeSummarise(results: Record<string, unknown>) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    console.log("\n(no ANTHROPIC_API_KEY — skipping Claude summary)");
+  const groqKey = process.env.GROQ_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+
+  if (groqKey) {
+    const { default: Groq } = await import("groq-sdk");
+    const client = new Groq({ apiKey: groqKey });
+    const model = process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile";
+    const msg = await client.chat.completions.create({
+      model,
+      max_tokens: 400,
+      messages: [
+        {
+          role: "user",
+          content: `I bought these API results on AuraGate. Write a 3-bullet report:\n${JSON.stringify(results).slice(0, 4000)}`,
+        },
+      ],
+    });
+    const text = msg.choices[0]?.message?.content ?? "";
+    console.log(`\n=== AI report (${model}) ===\n` + text);
     return;
   }
-  const { default: Anthropic } = await import("@anthropic-ai/sdk");
-  const client = new Anthropic({ apiKey: key });
-  const msg = await client.messages.create({
-    model: "claude-opus-4-8",
-    max_tokens: 400,
-    messages: [
-      {
-        role: "user",
-        content: `I bought these API results on AuraGate. Write a 3-bullet report:\n${JSON.stringify(results).slice(0, 4000)}`,
-      },
-    ],
-  });
-  const text = msg.content.map((c) => (c.type === "text" ? c.text : "")).join("");
-  console.log("\n=== Claude report ===\n" + text);
+
+  if (anthropicKey) {
+    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const client = new Anthropic({ apiKey: anthropicKey });
+    const msg = await client.messages.create({
+      model: "claude-opus-4-8",
+      max_tokens: 400,
+      messages: [
+        {
+          role: "user",
+          content: `I bought these API results on AuraGate. Write a 3-bullet report:\n${JSON.stringify(results).slice(0, 4000)}`,
+        },
+      ],
+    });
+    const text = msg.content.map((c) => (c.type === "text" ? c.text : "")).join("");
+    console.log("\n=== Claude report ===\n" + text);
+    return;
+  }
+
+  console.log("\n(no GROQ_API_KEY or ANTHROPIC_API_KEY — skipping AI summary)");
 }
 
 async function main() {
