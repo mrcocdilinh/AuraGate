@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getService, recordPayment, recordReceipt, updateReceiptOnchainTx } from "@/lib/store";
-import { buildChallenge, settlePayment } from "@/lib/x402";
+import { processPayment } from "@/lib/x402";
 import { resultHash } from "@/lib/format";
 import { writeReceiptOnChain } from "@/lib/onchain";
 import { ARC } from "@/lib/arc";
@@ -29,10 +29,11 @@ async function handle(req: NextRequest, slug: string) {
     return NextResponse.json({ error: "service_not_found" }, { status: 404 });
   }
 
-  const payment = await settlePayment(req, service.price, service.sellerAddress);
-  if (!payment) {
-    return NextResponse.json(buildChallenge(service.price, service.sellerAddress), { status: 402 });
+  const outcome = await processPayment(req, service.price, service.sellerAddress);
+  if (outcome.kind === "challenge") {
+    return outcome.response;
   }
+  const payment = outcome.payment;
 
   const body = await produce(slug, service.sampleResponse);
   const p = await recordPayment({
@@ -74,6 +75,8 @@ async function handle(req: NextRequest, slug: string) {
       "x-result-hash": hash,
       ...(payment.transaction ? { "x-settlement-tx": payment.transaction } : {}),
       "x-arc-explorer": ARC.explorer,
+      // Echo Circle's settlement header so the Gateway buyer client can read it.
+      ...(outcome.responseHeaders ?? {}),
     },
   });
 }
