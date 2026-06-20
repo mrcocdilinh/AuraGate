@@ -82,13 +82,27 @@ async function main() {
   let gateway: any = null;
   if (MODE === "live") {
     if (!PK || /^0x0+$/.test(PK)) throw new Error("BUYER_PRIVATE_KEY required for live mode");
+    console.log("Connecting to Circle Gateway (arcTestnet)…");
     const { GatewayClient } = await import("@circle-fin/x402-batching/client");
     gateway = new GatewayClient({
       chain: "arcTestnet",
       privateKey: PK as `0x${string}`,
     });
     console.log(`Buyer wallet: ${gateway.address}`);
-    await gateway.deposit(String(LIMIT));
+
+    // Check balances before depositing so we fail fast with a clear message.
+    try {
+      const balances = await gateway.getBalances();
+      console.log("Balances:", JSON.stringify(balances, (_k, v) =>
+        typeof v === "bigint" ? v.toString() : v));
+    } catch (e) {
+      console.warn("Could not read balances:", e instanceof Error ? e.message : e);
+    }
+
+    console.log(`Depositing ${LIMIT} USDC into Gateway (on-chain tx, may take ~10-30s)…`);
+    const dep = await gateway.deposit(String(LIMIT));
+    console.log("Deposit result:", JSON.stringify(dep, (_k, v) =>
+      typeof v === "bigint" ? v.toString() : v));
     console.log(`Deposited ${LIMIT} USDC into Gateway.\n`);
   }
 
