@@ -29,7 +29,10 @@ async function handle(req: NextRequest, slug: string) {
     return NextResponse.json({ error: "service_not_found" }, { status: 404 });
   }
 
-  const outcome = await processPayment(req, service.price, service.sellerAddress);
+  const payTo = /^0x[0-9a-fA-F]{40}$/.test(service.sellerAddress)
+    ? service.sellerAddress
+    : (process.env.SELLER_ADDRESS ?? "0x0000000000000000000000000000000000000000");
+  const outcome = await processPayment(req, service.price, payTo);
   if (outcome.kind === "challenge") {
     return outcome.response;
   }

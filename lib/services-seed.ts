@@ -7,7 +7,7 @@ export const SEED_SERVICES: Service[] = [
     description:
       "Paid oracle receipt & prediction-market insight API. Returns live market odds, evidence quality and a resolution-risk score, sourced from the AuraPredict indexer on Arc.",
     category: "market-insight",
-    sellerAddress: "0xA0Ra1111111111111111111111111111111111A1",
+    sellerAddress: "0xAAAEE8880C73a00cACe246B9445C62B77506b9b2",
     sellerName: "AuraPredict",
     price: "0.01",
     method: "GET",
@@ -32,7 +32,7 @@ export const SEED_SERVICES: Service[] = [
     description:
       "Objective oracle check for crypto spot prices with confidence score. Designed for agents resolving objective markets or triggering settlement.",
     category: "oracle",
-    sellerAddress: "0x0Rac1e22222222222222222222222222222222B2",
+    sellerAddress: "0xAAAEE8880C73a00cACe246B9445C62B77506b9b2",
     sellerName: "OracleWorks",
     price: "0.005",
     method: "GET",
@@ -49,7 +49,7 @@ export const SEED_SERVICES: Service[] = [
     description:
       "Compresses long text into a structured summary with key points. Pay-per-call, no API key, no subscription.",
     category: "ai",
-    sellerAddress: "0xA1bb3333333333333333333333333333333333C3",
+    sellerAddress: "0xAAAEE8880C73a00cACe246B9445C62B77506b9b2",
     sellerName: "BriefBot",
     price: "0.02",
     method: "POST",
@@ -66,7 +66,7 @@ export const SEED_SERVICES: Service[] = [
     description:
       "Daily JSON analytics snapshot: volumes, active wallets and top flows across Arc. Cheap enough to poll continuously.",
     category: "data",
-    sellerAddress: "0xDA7a4444444444444444444444444444444444D4",
+    sellerAddress: "0xAAAEE8880C73a00cACe246B9445C62B77506b9b2",
     sellerName: "ChainLabs",
     price: "0.001",
     method: "GET",
