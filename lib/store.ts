@@ -1,20 +1,64 @@
 import { randomUUID } from "crypto";
 import type { Payment, Receipt, Service, SellerStats } from "./types";
 import { SEED_SERVICES } from "./services-seed";
+import { db } from "./supabase";
 
-// ─── Backend selection ───────────────────────────────────────────────────────────────────────────────
-// When Vercel KV is connected, KV_REST_API_URL + KV_REST_API_TOKEN are injected
-// automatically. Locally (or before KV is added) we fall back to in-memory.
-const USE_KV = !!(
-  process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
-);
+// ─── Row mappers ─────────────────────────────────────────────────────────────
 
-async function kv() {
-  const { kv: client } = await import("@vercel/kv");
-  return client;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToService(r: any): Service {
+  return {
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    category: r.category,
+    sellerAddress: r.seller_address,
+    sellerName: r.seller_name,
+    price: r.price,
+    method: r.method,
+    endpoint: r.endpoint,
+    externalUrl: r.external_url ?? undefined,
+    docsUrl: r.docs_url ?? undefined,
+    tags: r.tags ?? undefined,
+    sampleResponse: r.sample_response,
+    verified: r.verified ?? false,
+    active: r.active,
+    createdAt: r.created_at,
+  };
 }
 
-// ─── In-memory fallback ─────────────────────────────────────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToPayment(r: any): Payment {
+  return {
+    id: r.id,
+    serviceSlug: r.service_slug,
+    buyerAddress: r.buyer_address,
+    amount: r.amount,
+    status: r.status,
+    txHash: r.tx_hash ?? undefined,
+    network: r.network,
+    createdAt: r.created_at,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function rowToReceipt(r: any): Receipt {
+  return {
+    id: r.id,
+    paymentId: r.payment_id,
+    serviceSlug: r.service_slug,
+    payer: r.payer,
+    amount: r.amount,
+    resultHash: r.result_hash,
+    rating: r.rating ?? undefined,
+    onchainTx: r.onchain_tx ?? undefined,
+    blockNumber: r.block_number ?? undefined,
+    createdAt: r.created_at,
+  };
+}
+
+// ─── In-memory fallback ──────────────────────────────────────────────────────
+
 interface DB {
   services: Service[];
   payments: Payment[];
@@ -23,204 +67,222 @@ interface DB {
 const g = globalThis as unknown as { __ag?: DB };
 function mem(): DB {
   if (!g.__ag)
-    g.__ag = {
-      services: structuredClone(SEED_SERVICES),
-      payments: [],
-      receipts: [],
-    };
+    g.__ag = { services: structuredClone(SEED_SERVICES), payments: [], receipts: [] };
   return g.__ag;
 }
 
-// ─── Services ────────────────────────────────────────────────────────────────────────────────────────
+// ─── Services ────────────────────────────────────────────────────────────────
+
 async function getAllServices(): Promise<Service[]> {
-  if (USE_KV) {
-    const k = await kv();
-    const data = await k.get<Service[]>("ag:services");
-    if (!data) {
-      const seeded = structuredClone(SEED_SERVICES) as Service[];
-      await k.set("ag:services", seeded);
-      return seeded;
+  if (db) {
+    const { data, error } = await db.from("services").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      await seedSupabase();
+      const { data: seeded } = await db.from("services").select("*").order("created_at", { ascending: false });
+      return (seeded ?? []).map(rowToService);
     }
-    return data;
+    return data.map(rowToService);
   }
   return mem().services;
 }
 
+async function seedSupabase(): Promise<void> {
+  if (!db) return;
+  const rows = SEED_SERVICES.map((s) => ({
+    slug: s.slug,
+    name: s.name,
+    description: s.description,
+    category: s.category,
+    seller_address: s.sellerAddress,
+    seller_name: s.sellerName,
+    price: s.price,
+    method: s.method,
+    endpoint: s.endpoint,
+    external_url: s.externalUrl ?? null,
+    docs_url: s.docsUrl ?? null,
+    tags: s.tags ?? null,
+    sample_response: s.sampleResponse,
+    verified: s.verified ?? false,
+    active: s.active,
+    created_at: s.createdAt,
+  }));
+  await db.from("services").upsert(rows, { onConflict: "slug" });
+}
+
 export async function listServices(): Promise<Service[]> {
-  return (await getAllServices()).filter((s) => s.active);
+  if (db) {
+    const { data, error } = await db.from("services").select("*").eq("active", true).order("created_at", { ascending: false });
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      await seedSupabase();
+      const { data: seeded } = await db.from("services").select("*").eq("active", true).order("created_at", { ascending: false });
+      return (seeded ?? []).map(rowToService);
+    }
+    return data.map(rowToService);
+  }
+  return mem().services.filter((s) => s.active);
 }
 
 export async function getService(slug: string): Promise<Service | undefined> {
-  return (await getAllServices()).find((s) => s.slug === slug);
+  if (db) {
+    const { data } = await db.from("services").select("*").eq("slug", slug).single();
+    return data ? rowToService(data) : undefined;
+  }
+  return mem().services.find((s) => s.slug === slug);
 }
 
 export async function addService(
-  input: Omit<Service, "createdAt" | "active" | "sampleResponse"> & {
-    sampleResponse?: unknown;
-  }
+  input: Omit<Service, "createdAt" | "active" | "sampleResponse"> & { sampleResponse?: unknown }
 ): Promise<Service> {
-  const svc: Service = {
-    ...input,
-    sampleResponse: input.sampleResponse ?? { ok: true },
-    active: true,
-    createdAt: new Date().toISOString(),
-  };
-  if (USE_KV) {
-    const k = await kv();
-    const services = await getAllServices();
-    services.unshift(svc);
-    await k.set("ag:services", services);
-  } else {
-    mem().services.unshift(svc);
+  const now = new Date().toISOString();
+  if (db) {
+    const row = {
+      slug: input.slug,
+      name: input.name,
+      description: input.description,
+      category: input.category,
+      seller_address: input.sellerAddress,
+      seller_name: input.sellerName,
+      price: input.price,
+      method: input.method,
+      endpoint: input.endpoint,
+      external_url: input.externalUrl ?? null,
+      docs_url: input.docsUrl ?? null,
+      tags: input.tags ?? null,
+      sample_response: input.sampleResponse ?? { ok: true },
+      verified: input.verified ?? false,
+      active: true,
+      created_at: now,
+    };
+    const { data, error } = await db.from("services").insert(row).select().single();
+    if (error) throw error;
+    return rowToService(data);
   }
+  const svc: Service = { ...input, sampleResponse: input.sampleResponse ?? { ok: true }, active: true, createdAt: now };
+  mem().services.unshift(svc);
   return svc;
 }
 
-async function writeAllServices(services: Service[]): Promise<void> {
-  if (USE_KV) {
-    const k = await kv();
-    await k.set("ag:services", services);
-  } else {
-    mem().services = services;
+export async function setServiceActive(slug: string, active: boolean): Promise<Service | undefined> {
+  if (db) {
+    const { data, error } = await db.from("services").update({ active }).eq("slug", slug).select().single();
+    if (error || !data) return undefined;
+    return rowToService(data);
   }
-}
-
-/** Toggle a service active/inactive. Returns the updated service. */
-export async function setServiceActive(
-  slug: string,
-  active: boolean
-): Promise<Service | undefined> {
-  const services = await getAllServices();
-  const svc = services.find((s) => s.slug === slug);
+  const svc = mem().services.find((s) => s.slug === slug);
   if (!svc) return undefined;
   svc.active = active;
-  await writeAllServices(services);
   return svc;
 }
 
-/** Remove a service from the registry. Returns true when one was deleted. */
 export async function deleteService(slug: string): Promise<boolean> {
-  const services = await getAllServices();
-  const next = services.filter((s) => s.slug !== slug);
-  if (next.length === services.length) return false;
-  await writeAllServices(next);
-  return true;
+  if (db) {
+    const { error, count } = await db.from("services").delete({ count: "exact" }).eq("slug", slug);
+    if (error) return false;
+    return (count ?? 0) > 0;
+  }
+  const before = mem().services.length;
+  mem().services = mem().services.filter((s) => s.slug !== slug);
+  return mem().services.length < before;
 }
 
-// ─── Payments ───────────────────────────────────────────────────────────────────────────────────────
-export async function recordPayment(
-  p: Omit<Payment, "id" | "createdAt">
-): Promise<Payment> {
-  const payment: Payment = {
-    ...p,
-    id: randomUUID(),
-    createdAt: new Date().toISOString(),
-  };
-  if (USE_KV) {
-    const k = await kv();
-    await k.lpush("ag:payments", payment);
-    await k.ltrim("ag:payments", 0, 999);
-  } else {
-    mem().payments.unshift(payment);
+// ─── Payments ────────────────────────────────────────────────────────────────
+
+export async function recordPayment(p: Omit<Payment, "id" | "createdAt">): Promise<Payment> {
+  const now = new Date().toISOString();
+  if (db) {
+    const row = {
+      id: randomUUID(),
+      service_slug: p.serviceSlug,
+      buyer_address: p.buyerAddress,
+      amount: p.amount,
+      status: p.status,
+      tx_hash: p.txHash ?? null,
+      network: p.network,
+      created_at: now,
+    };
+    const { data, error } = await db.from("payments").insert(row).select().single();
+    if (error) throw error;
+    return rowToPayment(data);
   }
+  const payment: Payment = { ...p, id: randomUUID(), createdAt: now };
+  mem().payments.unshift(payment);
   return payment;
 }
 
 export async function listPayments(): Promise<Payment[]> {
-  if (USE_KV) {
-    const k = await kv();
-    return k.lrange<Payment>("ag:payments", 0, 99);
+  if (db) {
+    const { data, error } = await db.from("payments").select("*").order("created_at", { ascending: false }).limit(100);
+    if (error) throw error;
+    return (data ?? []).map(rowToPayment);
   }
   return mem().payments;
 }
 
-// ─── Receipts ───────────────────────────────────────────────────────────────────────────────────────
-export async function recordReceipt(
-  r: Omit<Receipt, "id" | "createdAt">
-): Promise<Receipt> {
-  const receipt: Receipt = {
-    ...r,
-    id: randomUUID(),
-    createdAt: new Date().toISOString(),
-  };
-  if (USE_KV) {
-    const k = await kv();
-    await k.lpush("ag:receipts", receipt);
-    await k.ltrim("ag:receipts", 0, 999);
-  } else {
-    mem().receipts.unshift(receipt);
+// ─── Receipts ────────────────────────────────────────────────────────────────
+
+export async function recordReceipt(r: Omit<Receipt, "id" | "createdAt">): Promise<Receipt> {
+  const now = new Date().toISOString();
+  if (db) {
+    const row = {
+      id: randomUUID(),
+      payment_id: r.paymentId,
+      service_slug: r.serviceSlug,
+      payer: r.payer,
+      amount: r.amount,
+      result_hash: r.resultHash,
+      rating: r.rating ?? null,
+      onchain_tx: r.onchainTx ?? null,
+      block_number: r.blockNumber ?? null,
+      created_at: now,
+    };
+    const { data, error } = await db.from("receipts").insert(row).select().single();
+    if (error) throw error;
+    return rowToReceipt(data);
   }
+  const receipt: Receipt = { ...r, id: randomUUID(), createdAt: now };
+  mem().receipts.unshift(receipt);
   return receipt;
 }
 
 export async function listReceipts(): Promise<Receipt[]> {
-  if (USE_KV) {
-    const k = await kv();
-    return k.lrange<Receipt>("ag:receipts", 0, 99);
+  if (db) {
+    const { data, error } = await db.from("receipts").select("*").order("created_at", { ascending: false }).limit(200);
+    if (error) throw error;
+    return (data ?? []).map(rowToReceipt);
   }
   return mem().receipts;
 }
 
-export async function updateReceiptOnchainTx(
-  id: string,
-  onchainTx: string
-): Promise<void> {
-  if (USE_KV) {
-    const k = await kv();
-    const receipts = await k.lrange<Receipt>("ag:receipts", 0, -1);
-    const idx = receipts.findIndex((r) => r.id === id);
-    if (idx === -1) return;
-    receipts[idx] = { ...receipts[idx], onchainTx };
-    await k.del("ag:receipts");
-    for (let i = receipts.length - 1; i >= 0; i--) {
-      await k.lpush("ag:receipts", receipts[i]);
-    }
-  } else {
-    const r = mem().receipts.find((r) => r.id === id);
-    if (r) r.onchainTx = onchainTx;
+export async function updateReceiptOnchainTx(id: string, onchainTx: string): Promise<void> {
+  if (db) {
+    await db.from("receipts").update({ onchain_tx: onchainTx }).eq("id", id);
+    return;
   }
+  const r = mem().receipts.find((r) => r.id === id);
+  if (r) r.onchainTx = onchainTx;
 }
 
-export async function rateReceipt(
-  id: string,
-  rating: number
-): Promise<Receipt | undefined> {
+export async function rateReceipt(id: string, rating: number): Promise<Receipt | undefined> {
   const stars = Math.max(1, Math.min(5, Math.round(rating)));
-  if (USE_KV) {
-    const k = await kv();
-    const receipts = await k.lrange<Receipt>("ag:receipts", 0, -1);
-    const idx = receipts.findIndex((r) => r.id === id);
-    if (idx === -1) return undefined;
-    receipts[idx] = { ...receipts[idx], rating: stars };
-    // Rebuild list with updated entry
-    await k.del("ag:receipts");
-    for (let i = receipts.length - 1; i >= 0; i--) {
-      await k.lpush("ag:receipts", receipts[i]);
-    }
-    return receipts[idx];
+  if (db) {
+    const { data, error } = await db.from("receipts").update({ rating: stars }).eq("id", id).select().single();
+    if (error || !data) return undefined;
+    return rowToReceipt(data);
   }
   const receipt = mem().receipts.find((r) => r.id === id);
   if (receipt) receipt.rating = stars;
   return receipt;
 }
 
-// ─── Reputation ────────────────────────────────────────────────────────────────────────────────────
-/**
- * Aggregate per-seller reputation from services + receipts. The composite
- * `reputation` score (0–100) blends rating quality, demand (calls) and how much
- * of the catalog is health-checked — the trust signal Circle's curated
- * marketplace doesn't expose.
- */
+// ─── Reputation ──────────────────────────────────────────────────────────────
+
 export async function getSellers(): Promise<SellerStats[]> {
-  const [services, receipts] = await Promise.all([
-    getAllServices(),
-    listReceipts(),
-  ]);
+  const [services, receipts] = await Promise.all([getAllServices(), listReceipts()]);
 
   const slugToSeller = new Map<string, { address: string; name: string }>();
-  for (const s of services) {
-    slugToSeller.set(s.slug, { address: s.sellerAddress, name: s.sellerName });
-  }
+  for (const s of services) slugToSeller.set(s.slug, { address: s.sellerAddress, name: s.sellerName });
 
   type Acc = Omit<SellerStats, "reputation"> & { ratingSum: number };
   const map = new Map<string, Acc>();
@@ -228,18 +290,7 @@ export async function getSellers(): Promise<SellerStats[]> {
   const ensure = (address: string, name: string, createdAt: string): Acc => {
     let a = map.get(address);
     if (!a) {
-      a = {
-        address,
-        name,
-        services: 0,
-        calls: 0,
-        revenue: 0,
-        avgRating: null,
-        ratedCount: 0,
-        verifiedServices: 0,
-        firstSeen: createdAt,
-        ratingSum: 0,
-      };
+      a = { address, name, services: 0, calls: 0, revenue: 0, avgRating: null, ratedCount: 0, verifiedServices: 0, firstSeen: createdAt, ratingSum: 0 };
       map.set(address, a);
     }
     return a;
@@ -258,33 +309,17 @@ export async function getSellers(): Promise<SellerStats[]> {
     const a = ensure(owner.address, owner.name, r.createdAt);
     a.calls += 1;
     a.revenue += Number(r.amount);
-    if (r.rating) {
-      a.ratingSum += r.rating;
-      a.ratedCount += 1;
-    }
+    if (r.rating) { a.ratingSum += r.rating; a.ratedCount += 1; }
   }
 
   return [...map.values()]
     .map((a) => {
       const avgRating = a.ratedCount > 0 ? a.ratingSum / a.ratedCount : null;
-      // Composite: rating (50%) + demand (30%) + verified coverage (20%).
       const ratingScore = avgRating !== null ? (avgRating / 5) * 50 : 20;
       const demandScore = Math.min(a.calls / 50, 1) * 30;
-      const verifiedScore =
-        a.services > 0 ? (a.verifiedServices / a.services) * 20 : 0;
+      const verifiedScore = a.services > 0 ? (a.verifiedServices / a.services) * 20 : 0;
       const reputation = Math.round(ratingScore + demandScore + verifiedScore);
-      return {
-        address: a.address,
-        name: a.name,
-        services: a.services,
-        calls: a.calls,
-        revenue: a.revenue,
-        avgRating,
-        ratedCount: a.ratedCount,
-        verifiedServices: a.verifiedServices,
-        reputation,
-        firstSeen: a.firstSeen,
-      } satisfies SellerStats;
+      return { address: a.address, name: a.name, services: a.services, calls: a.calls, revenue: a.revenue, avgRating, ratedCount: a.ratedCount, verifiedServices: a.verifiedServices, reputation, firstSeen: a.firstSeen } satisfies SellerStats;
     })
     .sort((a, b) => b.reputation - a.reputation || b.revenue - a.revenue);
 }
