@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   PENDING_GOOGLE_KEY,
+  PIN_CHALLENGE_KEY,
   PUBLIC_APP_ID,
   PUBLIC_GOOGLE_CLIENT_ID,
   demoAddress,
@@ -93,7 +94,7 @@ export default function GoogleCallbackPage() {
             setPhase("creating");
             setMessage("Setting up your Arc wallet…");
 
-            const { address, error: walletError } = await ensureWalletAddress(
+            const { address, error: walletError, needsPinSetup } = await ensureWalletAddress(
               sdk,
               result.userToken,
               result.encryptionKey,
@@ -102,6 +103,22 @@ export default function GoogleCallbackPage() {
                 addStep(msg);
               }
             );
+
+            if (needsPinSetup) {
+              // Fresh page navigation clears W3SSdk singleton's OAuth loginConfigs
+              // so /setup-pin can open the PIN iframe without interference.
+              sessionStorage.setItem(
+                PIN_CHALLENGE_KEY,
+                JSON.stringify({
+                  ...needsPinSetup,
+                  email,
+                  stableSeed,
+                  returnPath: pending.returnPath || "/",
+                })
+              );
+              window.location.assign("/setup-pin");
+              return;
+            }
 
             if (!address && walletError) {
               // Surface the exact failure so it's diagnosable without the console.

@@ -140,7 +140,16 @@ export interface EnsureWalletResult {
   address: string | null;
   /** Human-readable reason when address is null (shown on-screen for diagnosis). */
   error?: string;
+  /**
+   * When set, the caller must persist these to sessionStorage under
+   * PIN_CHALLENGE_KEY and do a full navigation to /setup-pin.
+   * A page reload clears the W3SSdk singleton's OAuth loginConfigs so the
+   * fresh instance can render the PIN iframe without interference.
+   */
+  needsPinSetup?: { challengeId: string; userToken: string; encryptionKey: string };
 }
+
+export const PIN_CHALLENGE_KEY = "auragate.pin-challenge";
 
 /**
  * After a successful login, ensure the user has an Arc wallet and return its
@@ -210,16 +219,16 @@ export async function ensureWalletAddress(
       };
     }
 
-    progress("Opening PIN setup — enter a 6-digit PIN…");
-    try {
-      await executeChallenge(sdk, pinInit.challengeId, userToken, encryptionKey);
-    } catch (e) {
-      return {
-        address: null,
-        error: `PIN setup: ${e instanceof Error ? e.message : String(e)}`,
-      };
-    }
-    progress("PIN challenge done — confirming…");
+    // Signal the caller to redirect to /setup-pin with a fresh SDK instance.
+    // Executing the PIN challenge inside the OAuth callback page fails because
+    // the W3SSdk singleton still holds loginConfigs from the Google flow, which
+    // causes execute() to fire onSocialLoginVerified instead of opening the PIN
+    // iframe. A full page navigation resets the singleton cleanly.
+    progress("Redirecting to PIN setup…");
+    return {
+      address: null,
+      needsPinSetup: { challengeId: pinInit.challengeId, userToken, encryptionKey },
+    };
   } else if (init?.challengeId) {
     // PIN-less app: a plain CREATE_WALLET challenge.
     progress("Finalizing wallet…");
