@@ -125,15 +125,24 @@ Next.js App Router
 - **Footer**: 4 cột (brand, Product, For agents API, Ecosystem external links)
 - **PWA**: manifest.ts với icons, background/theme color
 
+### ✅ Phase 3 — Production infra (2026-06-20)
+- **Supabase persistence**: `lib/supabase.ts` + `lib/store.ts` rewrite (Supabase primary,
+  in-memory fallback). Tables: `services`/`payments`/`receipts` (schema ở `supabase-schema.sql`).
+  Auto-seed lần đầu. Env: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- **ReceiptRegistry deployed** lên Arc Testnet:
+  `0x11723de83d8a320c466585fb1545777cfcb4c947`
+  (deployer `0xAAAEE8880C73a00cACe246B9445C62B77506b9b2`,
+  tx `0xc617bc63ad1de927f5eb9453c26472dfb0ac0169596c2a7c4ac8efd81702bc5c`).
+  Set `NEXT_PUBLIC_RECEIPT_REGISTRY` + `DEPLOYER_PRIVATE_KEY` trong Vercel.
+- **On-chain write wired**: `lib/onchain.ts` `writeReceiptOnChain()` gọi `recordReceipt()`
+  sau mỗi settle (fire-and-forget trong premium route). Skip nếu payer là demo address.
+- **Docs**: `docs/DEPLOY_CONTRACT.md`, `docs/PIN_LESS_MODE.md`, `docs/DEMO_SCRIPT.md`.
+
 ### 🔲 Tiếp theo
-- [ ] Deploy `ReceiptRegistry` lên Arc Testnet
-      → `npm run compile && npm run deploy:receipts`
-      → Set `NEXT_PUBLIC_RECEIPT_REGISTRY=0x...` trong Vercel env
-      → Set `NEXT_PUBLIC_SITE_URL=https://auragate.app` cho sitemap
-- [ ] Kết nối on-chain write: sau khi settle, gọi `recordReceipt()` trên contract
-- [ ] Supabase persistence (thay in-memory store) — `lib/store.ts` map 1:1 với Supabase tables
-- [ ] Đổi Circle App sang **PIN-less mode** trong Circle Console (fix modal PIN vĩnh viễn)
-- [ ] Demo video + submit Circle/Arc office hours
+- [ ] Đổi Circle App sang **PIN-less mode** trong Circle Console (fix modal PIN — xem docs)
+- [ ] `X402_MODE=live` + lấy USDC testnet trên Arc → settlement + on-chain receipt thật
+- [ ] Set `NEXT_PUBLIC_SITE_URL=https://auragate.app` cho sitemap
+- [ ] Quay demo video (script sẵn ở `docs/DEMO_SCRIPT.md`) + submit Circle/Arc office hours
 
 ## Env Variables quan trọng
 
