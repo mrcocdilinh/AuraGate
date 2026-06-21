@@ -22,8 +22,15 @@ interface CatalogService {
   id: string;
   name: string;
   url: string;
+  method: "GET" | "POST";
   price: { amount: string };
 }
+
+const SAMPLE_TEXT =
+  "Circle Gateway enables gasless USDC micropayments using the open x402 protocol. " +
+  "AI agents autonomously pay for API access without gas fees or subscriptions. " +
+  "Arc testnet provides sub-second finality using USDC as the gas token. " +
+  "AuraGate is a permissionless marketplace where any developer can list and monetise their API.";
 
 async function getCatalog(): Promise<CatalogService[]> {
   const res = await fetch(`${TARGET}/api/agent`);
@@ -31,23 +38,33 @@ async function getCatalog(): Promise<CatalogService[]> {
   return json.services ?? [];
 }
 
-async function payMock(s: CatalogService): Promise<unknown> {
-  const r1 = await fetch(s.url);
-  console.log(`  ↳ ${s.name}: ${r1.status} Payment Required`);
-  const r2 = await fetch(s.url, {
+function fetchOpts(s: CatalogService, withPayment: boolean, paymentHeader?: string): RequestInit {
+  const isPost = s.method === "POST";
+  return {
+    method: s.method,
     headers: {
-      "x-payment": Buffer.from(
-        JSON.stringify({ price: s.price.amount, payer: "agent-mock" })
-      ).toString("base64"),
-      "x-payer": "0xA9e7000000000000000000000000000000000Bob",
+      ...(isPost ? { "content-type": "application/json" } : {}),
+      ...(withPayment && paymentHeader
+        ? { "x-payment": paymentHeader, "x-payer": "0xA9e7000000000000000000000000000000000Bob" }
+        : {}),
     },
-  });
+    ...(isPost ? { body: JSON.stringify({ text: SAMPLE_TEXT }) } : {}),
+  };
+}
+
+async function payMock(s: CatalogService): Promise<unknown> {
+  const r1 = await fetch(s.url, fetchOpts(s, false));
+  console.log(`  ↳ ${s.name}: ${r1.status} Payment Required`);
+  const header = Buffer.from(JSON.stringify({ price: s.price.amount, payer: "agent-mock" })).toString("base64");
+  const r2 = await fetch(s.url, fetchOpts(s, true, header));
   console.log(`  ↳ paid $${s.price.amount} → receipt ${r2.headers.get("x-receipt-id")}`);
   return r2.json();
 }
 
 async function payLive(s: CatalogService, gateway: any): Promise<unknown> {
-  const { data, amount } = await gateway.pay(s.url);
+  const isPost = s.method === "POST";
+  const opts = isPost ? { method: "POST", body: JSON.stringify({ text: SAMPLE_TEXT }), headers: { "content-type": "application/json" } } : undefined;
+  const { data, amount } = await gateway.pay(s.url, opts);
   console.log(`  ↳ paid ${amount} USDC for ${s.name}`);
   return data;
 }
