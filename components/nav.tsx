@@ -5,17 +5,20 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ConnectButton } from "./connect-button";
 
+// Browse links (everything a visitor can look at). Plain labels + icons so
+// non-technical visitors can tell them apart at a glance.
 const LINKS = [
-  { href: "/services", label: "Registry" },
-  { href: "/sellers", label: "Sellers" },
-  { href: "/dashboard", label: "Seller" },
-  { href: "/receipts", label: "Receipts" },
-  { href: "/playground", label: "Agent" },
+  { href: "/services", label: "Marketplace", icon: "🛍️", hint: "Browse all services" },
+  { href: "/sellers", label: "Top sellers", icon: "🏆", hint: "Reputation leaderboard" },
+  { href: "/receipts", label: "Receipts", icon: "🧾", hint: "On-chain payment proof" },
+  { href: "/playground", label: "Live demo", icon: "▶️", hint: "Watch an agent pay" },
 ];
 
 export function Nav() {
   const path = usePathname();
   const [open, setOpen] = useState(false);
+
+  const isActive = (href: string) => path === href || path.startsWith(href + "/");
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/70 backdrop-blur-md">
@@ -24,21 +27,66 @@ export function Nav() {
           <Logo />
           <span className="text-lg font-bold tracking-tight">Aura<span className="gradient-text">Gate</span></span>
         </Link>
+
+        {/* Desktop browse nav */}
         <nav className="hidden items-center gap-1 md:flex">
-          {LINKS.map((l) => {
-            const active = path === l.href || path.startsWith(l.href + "/");
-            return <Link key={l.href} href={l.href} className={`rounded-lg px-3 py-2 text-sm font-medium transition ${active ? "text-ink" : "text-muted hover:text-ink"}`}>{l.label}</Link>;
-          })}
+          {LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              title={l.hint}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                isActive(l.href) ? "bg-panel2/70 text-ink" : "text-muted hover:text-ink"
+              }`}
+            >
+              <span className="text-[13px] leading-none">{l.icon}</span>
+              {l.label}
+            </Link>
+          ))}
         </nav>
-        <div className="hidden md:block"><ConnectButton /></div>
+
+        {/* Right side: distinct "sell" action + wallet */}
+        <div className="hidden items-center gap-2 md:flex">
+          <Link
+            href="/dashboard"
+            title="List your own API and get paid"
+            className={`btn-ghost !px-3 !py-2 text-sm ${isActive("/dashboard") ? "!border-primary/60 !text-ink" : ""}`}
+          >
+            + Sell your API
+          </Link>
+          <ConnectButton />
+        </div>
+
         <button className="btn-ghost !px-3 md:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu">
           <span className="text-lg leading-none">{open ? "✕" : "☰"}</span>
         </button>
       </div>
+
+      {/* Mobile menu */}
       {open && (
         <div className="border-t border-line bg-bg2 md:hidden">
           <div className="container-page flex flex-col gap-1 py-3">
-            {LINKS.map((l) => <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-muted hover:bg-panel hover:text-ink">{l.label}</Link>)}
+            {LINKS.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium ${
+                  isActive(l.href) ? "bg-panel text-ink" : "text-muted hover:bg-panel hover:text-ink"
+                }`}
+              >
+                <span>{l.icon}</span>
+                <span className="flex-1">{l.label}</span>
+                <span className="text-[11px] text-muted/70">{l.hint}</span>
+              </Link>
+            ))}
+            <Link
+              href="/dashboard"
+              onClick={() => setOpen(false)}
+              className="mt-1 flex items-center gap-2.5 rounded-lg border border-primary/40 px-3 py-2.5 text-sm font-semibold text-ink"
+            >
+              <span>＋</span> Sell your API
+            </Link>
             <div className="px-1 pt-2"><ConnectButton /></div>
           </div>
         </div>

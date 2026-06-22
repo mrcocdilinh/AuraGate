@@ -69,43 +69,55 @@ export default function MarketplacePage() {
 
   return (
     <div className="container-page py-10">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Service registry</h1>
-          <p className="mt-1 text-sm text-muted">
-            {services.length} services · pay USDC per request via x402 · open to anyone
-          </p>
-        </div>
-        <input
-          className="input sm:max-w-xs"
-          placeholder="Search name, tag or seller…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+      <div>
+        <h1 className="text-3xl font-bold">Marketplace</h1>
+        <p className="mt-1 max-w-2xl text-sm text-muted">
+          Browse {services.length} data &amp; API services. AI agents pay a few cents
+          in USDC per request — no sign-up, no API key. Click any card to see details.
+        </p>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-2">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c}
-            onClick={() => setCat(c)}
-            className={`badge capitalize transition ${cat === c ? "!border-primary/70 !text-ink" : "hover:!text-ink"}`}
+      {/* Toolbar: search + sort on one row, category filters below */}
+      <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-line bg-panel/40 p-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">🔍</span>
+            <input
+              className="input pl-9"
+              placeholder="Search by name, tag or seller…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+          <select
+            className="input w-full !py-2.5 text-sm sm:w-auto"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
           >
-            {c.replace("-", " ")}
-          </button>
-        ))}
-        <select
-          className="input ml-auto w-auto !py-1.5 text-xs"
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortKey)}
-        >
-          <option value="popular">Most popular</option>
-          <option value="rating">Highest rated</option>
-          <option value="price-asc">Price: low → high</option>
-          <option value="price-desc">Price: high → low</option>
-          <option value="newest">Newest</option>
-        </select>
+            <option value="popular">Sort: Most popular</option>
+            <option value="rating">Sort: Highest rated</option>
+            <option value="price-asc">Sort: Price low → high</option>
+            <option value="price-desc">Sort: Price high → low</option>
+            <option value="newest">Sort: Newest</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">Filter:</span>
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              onClick={() => setCat(c)}
+              className={`badge capitalize transition ${cat === c ? "!border-primary/70 !bg-primary/15 !text-ink" : "hover:!text-ink"}`}
+            >
+              {c === "all" ? "All" : c.replace("-", " ")}
+            </button>
+          ))}
+        </div>
       </div>
+
+      <p className="mt-4 text-xs text-muted">
+        Showing {filtered.length} of {services.length} services
+      </p>
 
       {loading ? (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
