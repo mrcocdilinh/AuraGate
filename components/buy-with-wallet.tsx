@@ -129,7 +129,12 @@ export function BuyWithWallet({
     });
     const initData = await initRes.json().catch(() => ({}));
     if (!initRes.ok || !initData.challengeId) {
-      setError(initData.detail || initData.error || "Could not start the purchase.");
+      const raw = initData.detail || initData.error || "Could not start the purchase.";
+      setError(
+        raw.includes("USDC_ADDRESS") || raw.includes("usdc_not_configured")
+          ? "Circle wallet payment is not configured on this deployment. Use \"Try it now\" for a free demo instead."
+          : raw
+      );
       setPhase("error");
       return;
     }
