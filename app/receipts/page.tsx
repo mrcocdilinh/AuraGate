@@ -92,10 +92,14 @@ function SellerRatings({ receipts }: { receipts: Receipt[] }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+const PAGE_SIZES = [50, 100, 200];
+
 export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [filterService, setFilterService] = useState("");
   const [filterPayer, setFilterPayer] = useState("");
+  const [pageSize, setPageSize] = useState(50);
+  const [page, setPage] = useState(0);
 
   async function load() {
     const r = await fetch("/api/receipts").then((x) => x.json());
@@ -134,6 +138,20 @@ export default function ReceiptsPage() {
       ),
     [receipts, filterService, filterPayer]
   );
+
+  // Reset to the first page whenever the filters or page size change.
+  useEffect(() => {
+    setPage(0);
+  }, [filterService, filterPayer, pageSize]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, pageCount - 1);
+  const paged = useMemo(
+    () => filtered.slice(safePage * pageSize, safePage * pageSize + pageSize),
+    [filtered, safePage, pageSize]
+  );
+  const rangeStart = filtered.length === 0 ? 0 : safePage * pageSize + 1;
+  const rangeEnd = Math.min(filtered.length, safePage * pageSize + pageSize);
 
   return (
     <div className="container-page py-10">
@@ -204,9 +222,18 @@ export default function ReceiptsPage() {
             Clear filters
           </button>
         )}
-        <span className="ml-auto self-center text-xs text-muted">
-          {filtered.length} of {receipts.length} receipts
-        </span>
+        <div className="ml-auto flex items-center gap-2 self-center">
+          <span className="text-xs text-muted">Per page</span>
+          <select
+            className="input w-auto !py-1.5 text-xs"
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+          >
+            {PAGE_SIZES.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Receipt table */}
@@ -224,7 +251,7 @@ export default function ReceiptsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => (
+              {paged.map((r) => (
                 <tr key={r.id} className="border-b border-line/60 align-middle">
                   <td className="px-4 py-3 font-medium">{r.serviceSlug}</td>
                   <td className="px-4 py-3 font-mono text-xs text-muted">
@@ -286,6 +313,35 @@ export default function ReceiptsPage() {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {filtered.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs text-muted">
+            Showing {rangeStart}–{rangeEnd} of {filtered.length} receipts
+            {receipts.length !== filtered.length && ` (filtered from ${receipts.length})`}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-ghost text-xs disabled:opacity-40"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+            >
+              ← Prev
+            </button>
+            <span className="text-xs text-muted">
+              Page {safePage + 1} of {pageCount}
+            </span>
+            <button
+              className="btn-ghost text-xs disabled:opacity-40"
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+              disabled={safePage >= pageCount - 1}
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Per-seller ratings summary */}
       <SellerRatings receipts={receipts} />

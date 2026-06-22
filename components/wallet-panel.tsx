@@ -5,6 +5,7 @@ import { useWallet } from "./wallet-provider";
 import { loadSessionCreds, runChallenge } from "@/lib/wallet-client";
 import { shortAddr } from "@/lib/format";
 import { ARC, explorerAddress } from "@/lib/arc";
+import { readUsdcBalanceClient } from "@/lib/balance-client";
 import { CopyButton } from "./ui";
 
 interface Balance {
@@ -26,12 +27,10 @@ export function WalletPanel() {
   const refresh = useCallback(async () => {
     if (!w.address) return;
     setLoadingBal(true);
-    try {
-      const r = await fetch(`/api/wallet/balance?address=${w.address}`).then((x) => x.json());
-      setBal({ usdc: r.usdc ?? "0", configured: !!r.configured, rpcError: !!r.rpcError });
-    } catch {
-      setBal(null);
-    }
+    // Read the balance directly from the browser → Arc RPC. Vercel's serverless
+    // network can't always reach the Arc testnet RPC, but the user's browser can.
+    const r = await readUsdcBalanceClient(w.address);
+    setBal(r);
     setLoadingBal(false);
   }, [w.address]);
 
