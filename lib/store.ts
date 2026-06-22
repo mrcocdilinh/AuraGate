@@ -86,6 +86,9 @@ interface DB {
   receipts: Receipt[];
 }
 const g = globalThis as unknown as { __ag?: DB };
+const RECEIPT_DEFAULT_LIMIT = 200;
+const RECEIPT_PAGE_SIZE = 1000;
+
 function mem(): DB {
   if (!g.__ag)
     g.__ag = {
@@ -303,18 +306,54 @@ export async function recordReceipt(r: Omit<Receipt, "id" | "createdAt">): Promi
   return receipt;
 }
 
-export async function listReceipts(): Promise<Receipt[]> {
+export async function listReceipts(limit = RECEIPT_DEFAULT_LIMIT): Promise<Receipt[]> {
   if (db) {
-    const { data, error } = await db.from("receipts").select("*").order("created_at", { ascending: false }).limit(200);
+    const { data, error } = await db
+      .from("receipts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
     if (error) throw error;
     if (!data || data.length === 0) {
       await seedReceiptsSupabase();
-      const { data: seeded } = await db.from("receipts").select("*").order("created_at", { ascending: false }).limit(200);
+      const { data: seeded } = await db
+        .from("receipts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(limit);
       return (seeded ?? []).map(rowToReceipt);
     }
     return data.map(rowToReceipt);
   }
-  return mem().receipts;
+  return mem().receipts.slice(0, limit);
+}
+
+export async function listAllReceipts(): Promise<Receipt[]> {
+  if (!db) return mem().receipts;
+
+  const rows: unknown[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await db
+      .from("receipts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + RECEIPT_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < RECEIPT_PAGE_SIZE) break;
+    offset += RECEIPT_PAGE_SIZE;
+  }
+
+  if (rows.length === 0) {
+    await seedReceiptsSupabase();
+    return listReceipts(RECEIPT_PAGE_SIZE);
+  }
+
+  return rows.map(rowToReceipt);
 }
 
 export async function getReceipt(id: string): Promise<Receipt | undefined> {
@@ -350,7 +389,7 @@ export async function rateReceipt(id: string, rating: number): Promise<Receipt |
 // ─── Reputation ──────────────────────────────────────────────────────────────
 
 export async function getSellers(): Promise<SellerStats[]> {
-  const [services, receipts] = await Promise.all([getAllServices(), listReceipts()]);
+  const [services, receipts] = await Promise.all([getAllServices(), listAllReceipts()]);
   const trustedReceipts = receipts.filter(isTrustedReceipt);
 
   const slugToSeller = new Map<string, { address: string; name: string }>();

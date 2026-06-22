@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { listServices, listReceipts } from "@/lib/store";
+import { listServices, listAllReceipts } from "@/lib/store";
 import { isTrustedReceipt } from "@/lib/trust";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const [services, receipts] = await Promise.all([listServices(), listReceipts()]);
+  const [services, receipts] = await Promise.all([listServices(), listAllReceipts()]);
   const trustedReceipts = receipts.filter(isTrustedReceipt);
   const revenue = trustedReceipts.reduce((a, r) => a + Number(r.amount), 0);
   const buyers = new Set(trustedReceipts.map((r) => r.payer)).size;
