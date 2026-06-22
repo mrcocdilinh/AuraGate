@@ -138,6 +138,54 @@ async function produce(slug: string, fallback: unknown, req: NextRequest): Promi
       return { source: "sample", generatedAt: now, coins: [] };
     }
 
+    case "weather": {
+      // City passed via ?city= ... defaults to a few majors; uses open-meteo (no key).
+      const url = new URL(req.url);
+      const city = (url.searchParams.get("city") ?? "hanoi").toLowerCase();
+      const cities: Record<string, { lat: number; lon: number; name: string }> = {
+        hanoi: { lat: 21.03, lon: 105.85, name: "Hanoi" },
+        singapore: { lat: 1.35, lon: 103.82, name: "Singapore" },
+        tokyo: { lat: 35.68, lon: 139.69, name: "Tokyo" },
+        london: { lat: 51.51, lon: -0.13, name: "London" },
+        newyork: { lat: 40.71, lon: -74.01, name: "New York" },
+      };
+      const loc = cities[city] ?? cities.hanoi;
+      try {
+        const r = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code`,
+          { signal: AbortSignal.timeout(4000) }
+        );
+        if (r.ok) {
+          const d = await r.json();
+          const c = d.current ?? {};
+          return {
+            source: "open-meteo",
+            generatedAt: now,
+            city: loc.name,
+            temperatureC: c.temperature_2m,
+            humidityPct: c.relative_humidity_2m,
+            windSpeedKmh: c.wind_speed_10m,
+            observedAt: c.time,
+          };
+        }
+      } catch { /* fall through */ }
+      return { source: "sample", generatedAt: now, city: loc.name, temperatureC: 28 };
+    }
+
+    case "fx-rates": {
+      // Latest USD exchange rates from frankfurter.app (ECB data, no key).
+      try {
+        const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=EUR,GBP,JPY,VND,SGD,CNY", {
+          signal: AbortSignal.timeout(4000),
+        });
+        if (r.ok) {
+          const d = await r.json();
+          return { source: "frankfurter/ECB", generatedAt: now, base: "USD", date: d.date, rates: d.rates };
+        }
+      } catch { /* fall through */ }
+      return { source: "sample", generatedAt: now, base: "USD", rates: { EUR: 0.92, VND: 25400 } };
+    }
+
     default:
       return { generatedAt: now, data: fallback };
   }

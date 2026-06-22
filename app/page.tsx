@@ -25,15 +25,16 @@ export default async function Home() {
             Built on Arc · powered by x402 + Circle Gateway
           </span>
           <h1 className="mt-6 text-4xl font-extrabold leading-[1.1] tracking-tight sm:text-6xl">
-            The open registry for{" "}
-            <span className="gradient-text">AI agents to move value</span>
+            The app store where{" "}
+            <span className="gradient-text">AI buys what it needs</span>
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-muted sm:text-lg">
-            Any developer can list an x402 service. Any agent can discover and pay{" "}
-            <strong className="text-ink">USDC per request</strong> — no API keys,
-            no sign-ups, no approval queue. Every call settles to a verifiable{" "}
-            <strong className="text-ink">on-chain receipt</strong>, and reputation
-            is earned, not curated.
+            AuraGate is a marketplace of data &amp; APIs where{" "}
+            <strong className="text-ink">AI agents pay for what they use</strong> —
+            a few cents in USDC per request, no sign-up and no API key. Every
+            purchase leaves a{" "}
+            <strong className="text-ink">receipt on the blockchain</strong> as proof.
+            Anyone can sell; trust is earned from real usage, not a gatekeeper.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/services" className="btn-primary w-full sm:w-auto">
@@ -67,22 +68,30 @@ export default async function Home() {
           ))}
         </div>
 
-        {/* How it works */}
-        <div className="mx-auto mt-14 grid max-w-4xl gap-4 sm:grid-cols-4">
-          {[
-            ["Discover", "Agent reads the catalog at /api/agent"],
-            ["Request", "Server returns 402 + payment challenge"],
-            ["Pay", "Sign USDC authorization (EIP-3009)"],
-            ["Receipt", "On-chain proof on Arc Testnet"],
-          ].map(([t, d], i) => (
-            <div key={String(t)} className="card p-4 text-center">
-              <div className="mx-auto mb-2 grid h-8 w-8 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">
-                {i + 1}
+        {/* How it works — plain language */}
+        <div className="mx-auto mt-16 max-w-4xl">
+          <h2 className="text-center text-lg font-semibold">How a purchase works — in 4 simple steps</h2>
+          <div className="mt-6 grid gap-4 sm:grid-cols-4">
+            {[
+              ["Find", "An AI agent browses the catalog and picks a service it needs."],
+              ["Ask", "It requests the data. The service replies: “pay first, please.”"],
+              ["Pay", "The agent pays a few cents in USDC — automatically, no human, no card."],
+              ["Receive", "It gets the data plus a blockchain receipt proving the payment."],
+            ].map(([t, d], i) => (
+              <div key={String(t)} className="card p-4 text-center">
+                <div className="mx-auto mb-2 grid h-8 w-8 place-items-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                  {i + 1}
+                </div>
+                <p className="font-semibold">{t}</p>
+                <p className="mt-1 text-xs text-muted">{d}</p>
               </div>
-              <p className="font-semibold">{t}</p>
-              <p className="mt-1 text-xs text-muted">{d}</p>
-            </div>
-          ))}
+            ))}
+          </div>
+          <p className="mt-4 text-center text-xs text-muted">
+            Powered by the open <span className="text-ink">x402</span> standard +
+            Circle Gateway. Developers: the machine-readable catalog lives at{" "}
+            <Link href="/api/agent" className="text-ink underline-offset-2 hover:underline">/api/agent</Link>.
+          </p>
         </div>
       </section>
 
@@ -154,27 +163,27 @@ export default async function Home() {
       {/* Two sides */}
       <section className="container-page mt-24 grid gap-5 md:grid-cols-2">
         <div className="card p-7">
-          <h3 className="text-xl font-bold">For AI agents &amp; buyers</h3>
+          <h3 className="text-xl font-bold">If you build AI agents (buyers)</h3>
           <ul className="mt-4 space-y-2.5 text-sm text-muted">
-            <Li>Pay-per-call with USDC, gas-free via Circle Gateway nanopayments</Li>
-            <Li>No accounts or API keys — payment is the access credential</Li>
-            <Li>Spending limits enforced by Agent Wallet policy</Li>
-            <Li>Every purchase returns a verifiable on-chain receipt</Li>
+            <Li>Your agent pays per request in USDC — no gas fees</Li>
+            <Li>No accounts or API keys to manage — paying is the login</Li>
+            <Li>Set a spending limit so it never overspends</Li>
+            <Li>Every purchase comes with a blockchain receipt</Li>
           </ul>
           <Link href="/playground" className="btn-ghost mt-6">
-            Try the agent playground
+            Watch an agent buy →
           </Link>
         </div>
         <div className="card p-7">
-          <h3 className="text-xl font-bold">For sellers</h3>
+          <h3 className="text-xl font-bold">If you have an API to sell (sellers)</h3>
           <ul className="mt-4 space-y-2.5 text-sm text-muted">
-            <Li>List any x402 endpoint in minutes and set a per-request price</Li>
-            <Li>Receive USDC on Arc, withdraw cross-chain</Li>
-            <Li>Dashboard: revenue chart, top buyers, ratings</Li>
-            <Li>Reputation builds from on-chain receipts</Li>
+            <Li>List your service in minutes and set your own price</Li>
+            <Li>Get paid in USDC the moment someone uses it</Li>
+            <Li>Dashboard shows your revenue, buyers and ratings</Li>
+            <Li>Build a reputation score from real, rated usage</Li>
           </ul>
           <Link href="/dashboard" className="btn-ghost mt-6">
-            Open seller dashboard
+            Open seller dashboard →
           </Link>
         </div>
       </section>
