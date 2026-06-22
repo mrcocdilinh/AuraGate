@@ -6,6 +6,7 @@ import { Footer } from "@/components/footer";
 import { TestnetBanner } from "@/components/testnet-banner";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://auragate.app"),
   title: "AuraGate — The gateway for AI agents to move value.",
   description:
     "AI agent payments gateway built on stablecoin rails. Discover & pay for AI services via x402 nanopayments on Arc — no API keys, no subscriptions, just USDC.",

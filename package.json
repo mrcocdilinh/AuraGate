@@ -13,15 +13,17 @@
     "fleet": "tsx agent/fleet.mts",
     "demo:crypto": "tsx agent/demo-crypto.mts",
     "seller:setup": "tsx scripts/seller-setup.mts",
+    "test": "tsx --test tests/*.test.ts",
+    "audit:prod": "npm audit --omit=dev --audit-level=high",
     "compile": "hardhat compile",
-    "deploy:receipts": "hardhat run scripts/deploy_receipts.cjs --network arcTestnet"
+    "deploy:receipts": "hardhat run scripts/deploy_receipts.cjs --network arcTestnet",
+    "deploy:receipts:v2": "hardhat run scripts/deploy_receipts_v2.cjs --network arcTestnet"
   },
   "dependencies": {
     "@circle-fin/user-controlled-wallets": "^10.6.0",
     "@circle-fin/w3s-pw-web-sdk": "^1.1.11",
     "@circle-fin/x402-batching": "^3.2.0",
     "@supabase/supabase-js": "^2.108.2",
-    "@vercel/kv": "^3.0.0",
     "@x402/core": "^2.15.0",
     "@x402/evm": "^2.3.0",
     "next": "^16.2.9",

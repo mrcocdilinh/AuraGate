@@ -6,6 +6,7 @@ import { usd, shortAddr, timeAgo } from "@/lib/format";
 import { Stat } from "@/components/ui";
 import { useWallet } from "@/components/wallet-provider";
 import { SellerTabs } from "@/components/seller-tabs";
+import { isTrustedReceipt } from "@/lib/trust";
 
 // ── Revenue bar chart (pure SVG, no external deps) ───────────────────────────
 
@@ -135,8 +136,9 @@ export default function DashboardPage() {
     return () => clearInterval(t);
   }, []);
 
-  const revenue = receipts.reduce((a, r) => a + Number(r.amount), 0);
-  const buyers = new Set(receipts.map((r) => r.payer)).size;
+  const trustedReceipts = receipts.filter(isTrustedReceipt);
+  const revenue = trustedReceipts.reduce((a, r) => a + Number(r.amount), 0);
+  const buyers = new Set(trustedReceipts.map((r) => r.payer)).size;
 
   return (
     <div className="container-page py-10">
@@ -153,14 +155,14 @@ export default function DashboardPage() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Revenue (USDC)" value={usd(revenue)} />
-        <Stat label="Requests paid" value={receipts.length} />
+        <Stat label="Requests paid" value={trustedReceipts.length} />
         <Stat label="Unique buyers" value={buyers} />
         <Stat label="Live services" value={services.length} />
       </div>
 
       <div className="card mt-6 p-5">
         <h2 className="mb-3 text-lg font-semibold">Revenue by service</h2>
-        <RevenueChart receipts={receipts} services={services} />
+        <RevenueChart receipts={trustedReceipts} services={services} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
@@ -180,7 +182,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {receipts.slice(0, 10).map((r) => (
+                {trustedReceipts.slice(0, 10).map((r) => (
                   <tr key={r.id} className="border-b border-line/60">
                     <td className="px-5 py-3 font-medium">{r.serviceSlug}</td>
                     <td className="px-5 py-3 font-mono text-xs text-muted">{shortAddr(r.payer)}</td>
@@ -188,7 +190,7 @@ export default function DashboardPage() {
                     <td className="px-5 py-3 text-xs text-muted">{timeAgo(r.createdAt)}</td>
                   </tr>
                 ))}
-                {receipts.length === 0 && (
+                {trustedReceipts.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-5 py-8 text-center text-sm text-muted">
                       No payments yet — run the agent or try a service.
@@ -200,7 +202,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <TopBuyers receipts={receipts} />
+        <TopBuyers receipts={trustedReceipts} />
       </div>
     </div>
   );

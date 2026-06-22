@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Service } from "@/lib/types";
 import { usd } from "@/lib/format";
 import { VerifiedBadge } from "@/components/ui";
+import { loadSessionCreds } from "@/lib/wallet-client";
 
 /** Table of the services listed under the connected wallet, with manage actions. */
 export function MyServices({
@@ -22,10 +23,11 @@ export function MyServices({
 
   async function toggle(slug: string, active: boolean) {
     setBusy(slug);
+    const creds = loadSessionCreds();
     await fetch("/api/services", {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ slug, active, sellerAddress: address }),
+      body: JSON.stringify({ slug, active, sellerAddress: address, userToken: creds?.userToken }),
     });
     await onChange();
     setBusy("");
@@ -34,10 +36,11 @@ export function MyServices({
   async function remove(slug: string) {
     if (!confirm(`Delete "${slug}" from the registry? This cannot be undone.`)) return;
     setBusy(slug);
+    const creds = loadSessionCreds();
     await fetch("/api/services", {
       method: "DELETE",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ slug, sellerAddress: address }),
+      body: JSON.stringify({ slug, sellerAddress: address, userToken: creds?.userToken }),
     });
     await onChange();
     setBusy("");

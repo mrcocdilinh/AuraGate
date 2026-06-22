@@ -8,6 +8,9 @@ import {
 } from "@/lib/store";
 import type { ServiceCategory } from "@/lib/types";
 import { probeX402Endpoint } from "@/lib/x402-probe";
+import { assertPublicHttpUrl } from "@/lib/safe-url";
+import { authorizeOwner } from "@/lib/owner-auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +27,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "services:post", 20, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "retry-after": String(limited.retryAfter) } });
+  }
   const b = await req.json().catch(() => null);
   if (!b || !b.name || !b.sellerAddress || !b.price) {
     return NextResponse.json(
@@ -55,15 +62,27 @@ export async function POST(req: NextRequest) {
 
   const category = CATEGORIES.includes(b.category) ? b.category : "data";
   const method = b.method === "POST" ? "POST" : "GET";
+  const sellerAddress = String(b.sellerAddress).trim();
+  const owner = await authorizeOwner({
+    body: b,
+    expectedAddress: sellerAddress,
+    action: "service:create",
+    subject: slug,
+    extra: { price: String(priceNum), method },
+  });
+  if (!owner.ok) {
+    return NextResponse.json({ error: owner.error }, { status: 403 });
+  }
 
   let externalUrl: string | undefined;
   if (b.externalUrl) {
     try {
-      const u = new URL(String(b.externalUrl));
-      if (!/^https?:$/.test(u.protocol)) throw new Error("bad protocol");
-      externalUrl = u.toString();
-    } catch {
-      return NextResponse.json({ error: "externalUrl must be a valid http(s) URL" }, { status: 400 });
+      externalUrl = await assertPublicHttpUrl(String(b.externalUrl));
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : "externalUrl must be a valid public URL" },
+        { status: 400 }
+      );
     }
   }
 
@@ -94,7 +113,7 @@ export async function POST(req: NextRequest) {
     name: String(b.name).slice(0, 80),
     description: String(b.description ?? "").slice(0, 400),
     category,
-    sellerAddress: String(b.sellerAddress),
+    sellerAddress,
     sellerName: String(b.sellerName ?? "Anonymous Seller").slice(0, 60),
     price: String(priceNum),
     method,
@@ -111,14 +130,25 @@ export async function POST(req: NextRequest) {
 
 /** Deactivate / reactivate a service. Body: { slug, sellerAddress, active }. */
 export async function PATCH(req: NextRequest) {
+  const limited = rateLimit(req, "services:patch", 60, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "retry-after": String(limited.retryAfter) } });
+  }
   const b = await req.json().catch(() => null);
   if (!b?.slug || typeof b.active !== "boolean") {
     return NextResponse.json({ error: "slug and active required" }, { status: 400 });
   }
   const svc = await getService(b.slug);
   if (!svc) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (b.sellerAddress && svc.sellerAddress !== b.sellerAddress) {
-    return NextResponse.json({ error: "not the owner of this service" }, { status: 403 });
+  const owner = await authorizeOwner({
+    body: b,
+    expectedAddress: svc.sellerAddress,
+    action: "service:update",
+    subject: svc.slug,
+    extra: { active: b.active },
+  });
+  if (!owner.ok) {
+    return NextResponse.json({ error: owner.error }, { status: 403 });
   }
   const updated = await setServiceActive(b.slug, b.active);
   return NextResponse.json({ service: updated });
@@ -126,14 +156,24 @@ export async function PATCH(req: NextRequest) {
 
 /** Remove a service. Body: { slug, sellerAddress }. */
 export async function DELETE(req: NextRequest) {
+  const limited = rateLimit(req, "services:delete", 30, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "retry-after": String(limited.retryAfter) } });
+  }
   const b = await req.json().catch(() => null);
   if (!b?.slug) {
     return NextResponse.json({ error: "slug required" }, { status: 400 });
   }
   const svc = await getService(b.slug);
   if (!svc) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (b.sellerAddress && svc.sellerAddress !== b.sellerAddress) {
-    return NextResponse.json({ error: "not the owner of this service" }, { status: 403 });
+  const owner = await authorizeOwner({
+    body: b,
+    expectedAddress: svc.sellerAddress,
+    action: "service:delete",
+    subject: svc.slug,
+  });
+  if (!owner.ok) {
+    return NextResponse.json({ error: owner.error }, { status: 403 });
   }
   await deleteService(b.slug);
   return NextResponse.json({ ok: true });

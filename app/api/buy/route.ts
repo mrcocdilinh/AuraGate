@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getService } from "@/lib/store";
 import { initUsdcWithdrawal } from "@/lib/circle";
 import { createPendingBuy } from "@/lib/pending-buys";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,10 @@ export const dynamic = "force-dynamic";
  * transfer, then calls POST /api/buy/confirm to receive the data.
  */
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "buy:init", 30, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "retry-after": String(limited.retryAfter) } });
+  }
   const b = await req.json().catch(() => null);
   if (!b?.slug || !b?.userToken) {
     return NextResponse.json({ error: "slug and userToken are required" }, { status: 400 });
@@ -46,6 +51,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: transfer.error, detail: transfer.detail }, { status: 400 });
   }
 
-  const pendingId = createPendingBuy(service.slug, service.price, service.sellerAddress);
+  const pendingId = await createPendingBuy(service.slug, service.price, service.sellerAddress);
   return NextResponse.json({ challengeId: transfer.challengeId, pendingId });
 }

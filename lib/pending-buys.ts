@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { db } from "./supabase";
 
 interface PendingBuy {
   id: string;
@@ -23,15 +24,40 @@ function prune() {
   }
 }
 
-export function createPendingBuy(slug: string, price: string, sellerAddress: string): string {
+export async function createPendingBuy(slug: string, price: string, sellerAddress: string): Promise<string> {
   prune();
   const id = randomUUID();
+  if (db) {
+    const { error } = await db.from("pending_buys").insert({
+      id,
+      slug,
+      price,
+      seller_address: sellerAddress,
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 5 * 60_000).toISOString(),
+    });
+    if (error) throw error;
+    return id;
+  }
   store().set(id, { id, slug, price, sellerAddress, createdAt: Date.now() });
   return id;
 }
 
 /** Consume a pending buy (one-time, expires in 5 min). Returns null if invalid/expired. */
-export function consumePendingBuy(id: string): PendingBuy | null {
+export async function consumePendingBuy(id: string): Promise<PendingBuy | null> {
+  if (db) {
+    const { data } = await db.from("pending_buys").select("*").eq("id", id).single();
+    if (!data) return null;
+    await db.from("pending_buys").delete().eq("id", id);
+    if (Date.parse(data.expires_at) < Date.now()) return null;
+    return {
+      id: data.id,
+      slug: data.slug,
+      price: data.price,
+      sellerAddress: data.seller_address,
+      createdAt: Date.parse(data.created_at),
+    };
+  }
   const buy = store().get(id);
   if (!buy) return null;
   if (Date.now() - buy.createdAt > 5 * 60_000) {

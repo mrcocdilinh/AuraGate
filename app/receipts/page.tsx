@@ -5,13 +5,14 @@ import type { Receipt } from "@/lib/types";
 import { usd, shortAddr, timeAgo } from "@/lib/format";
 import { ARC, explorerTx, explorerAddress } from "@/lib/arc";
 import { Stars } from "@/components/ui";
+import { loadSessionCreds } from "@/lib/wallet-client";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
 function exportCsv(receipts: Receipt[]) {
-  const head = ["id", "service", "payer", "amount", "resultHash", "rating", "onchainTx", "createdAt"];
+  const head = ["id", "service", "payer", "amount", "mode", "requestHash", "resultHash", "settlementRef", "rating", "onchainTx", "createdAt"];
   const rows = receipts.map((r) =>
-    [r.id, r.serviceSlug, r.payer, r.amount, r.resultHash, r.rating ?? "", r.onchainTx ?? "", r.createdAt]
+    [r.id, r.serviceSlug, r.payer, r.amount, r.mode ?? "", r.requestHash ?? "", r.resultHash, r.settlementRef ?? "", r.rating ?? "", r.onchainTx ?? "", r.createdAt]
       .map((v) => `"${String(v).replace(/"/g, '""')}"`)
       .join(",")
   );
@@ -112,10 +113,11 @@ export default function ReceiptsPage() {
   }, []);
 
   async function rate(id: string, rating: number) {
+    const creds = loadSessionCreds();
     await fetch("/api/receipts", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ id, rating }),
+      body: JSON.stringify({ id, rating, userToken: creds?.userToken }),
     });
     load();
   }

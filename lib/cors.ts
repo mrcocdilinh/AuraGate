@@ -8,7 +8,7 @@ export const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "content-type, x-payment, x-payer, payment-signature",
   "Access-Control-Expose-Headers":
-    "x-receipt-id, x-result-hash, x-settlement-tx, x-payment-network, x-arc-explorer",
+    "x-receipt-id, x-result-hash, x-settlement-tx, x-payment-network, x-arc-explorer, payment-required, payment-response, PAYMENT-REQUIRED, PAYMENT-RESPONSE",
   "Access-Control-Max-Age": "86400",
 };
 

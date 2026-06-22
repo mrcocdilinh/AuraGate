@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { initUsdcWithdrawal } from "@/lib/circle";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,10 @@ const ADDR = /^0x[a-fA-F0-9]{40}$/;
  * Returns { challengeId } for the client SDK to execute, or an error.
  */
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "wallet:transfer", 20, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "retry-after": String(limited.retryAfter) } });
+  }
   const b = await req.json().catch(() => null);
   if (!b?.userToken) {
     return NextResponse.json({ error: "userToken is required" }, { status: 400 });

@@ -86,8 +86,30 @@ NEXT_PUBLIC_SITE_URL=https://auragate.app
 ## Docs
 
 - [`docs/DEPLOY_CONTRACT.md`](docs/DEPLOY_CONTRACT.md) — deploy ReceiptRegistry to Arc
+- [`docs/MAINNET_READINESS.md`](docs/MAINNET_READINESS.md) — mainnet beta hardening checklist
 - [`docs/PIN_LESS_MODE.md`](docs/PIN_LESS_MODE.md) — Circle wallet PIN setup
 - [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) — pitch video script
+
+## Mainnet beta posture
+
+AuraGate's recommended production flow keeps payments on x402/Circle Gateway:
+agents pay the seller wallet advertised in the 402 challenge, then AuraGate
+records a V2 receipt after settlement. The receipt contract is **not** escrow.
+
+Before mainnet, run:
+
+```bash
+npm ci
+npm test
+npm run typecheck
+npm run compile
+npm run build
+npm run deploy:receipts:v2
+```
+
+Production deployments should set `X402_MODE=live`,
+`NEXT_PUBLIC_NETWORK_MODE=mainnet`, `NEXT_PUBLIC_RECEIPT_REGISTRY_VERSION=2`,
+and keep `ALLOW_DEMO_PAYERS_IN_LIVE=false`, `ENABLE_DEBUG_ROUTES=false`.
 
 ---
 

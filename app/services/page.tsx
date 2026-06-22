@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Service, Receipt } from "@/lib/types";
 import { usd } from "@/lib/format";
 import { CategoryPill, Stars, Skeleton } from "@/components/ui";
+import { isTrustedReceipt } from "@/lib/trust";
 
 const CATEGORIES = ["all", "market-insight", "oracle", "ai", "data", "compute"];
 type SortKey = "popular" | "rating" | "price-asc" | "price-desc" | "newest";
@@ -32,7 +33,7 @@ export default function MarketplacePage() {
   // Per-service aggregates: call count and average rating.
   const stats = useMemo(() => {
     const m: Record<string, { calls: number; ratingSum: number; rated: number }> = {};
-    for (const r of receipts) {
+    for (const r of receipts.filter(isTrustedReceipt)) {
       const e = (m[r.serviceSlug] ??= { calls: 0, ratingSum: 0, rated: 0 });
       e.calls += 1;
       if (r.rating) {

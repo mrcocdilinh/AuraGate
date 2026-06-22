@@ -3,6 +3,7 @@ import type { Payment, Receipt, Service, SellerStats } from "./types";
 import { SEED_SERVICES } from "./services-seed";
 import { SEED_RECEIPTS } from "./receipts-seed";
 import { db } from "./supabase";
+import { isTrustedReceipt } from "./trust";
 
 /** Build seed receipts with stable ids + staggered timestamps (newest first). */
 function seedReceiptRows(): Receipt[] {
@@ -44,10 +45,14 @@ function rowToPayment(r: any): Payment {
     id: r.id,
     serviceSlug: r.service_slug,
     buyerAddress: r.buyer_address,
+    sellerAddress: r.seller_address ?? undefined,
     amount: r.amount,
     status: r.status,
     txHash: r.tx_hash ?? undefined,
     network: r.network,
+    asset: r.asset ?? undefined,
+    mode: r.mode ?? undefined,
+    verifiedAt: r.verified_at ?? undefined,
     createdAt: r.created_at,
   };
 }
@@ -59,11 +64,16 @@ function rowToReceipt(r: any): Receipt {
     paymentId: r.payment_id,
     serviceSlug: r.service_slug,
     payer: r.payer,
+    sellerAddress: r.seller_address ?? undefined,
     amount: r.amount,
     resultHash: r.result_hash,
+    requestHash: r.request_hash ?? undefined,
     rating: r.rating ?? undefined,
     onchainTx: r.onchain_tx ?? undefined,
     blockNumber: r.block_number ?? undefined,
+    mode: r.mode ?? undefined,
+    settlementRef: r.settlement_ref ?? undefined,
+    contractAddress: r.contract_address ?? undefined,
     createdAt: r.created_at,
   };
 }
@@ -135,9 +145,13 @@ async function seedReceiptsSupabase(): Promise<void> {
     payer: r.payer,
     amount: r.amount,
     result_hash: r.resultHash,
+    request_hash: null,
     rating: r.rating ?? null,
     onchain_tx: null,
     block_number: null,
+    mode: "mock",
+    settlement_ref: null,
+    contract_address: null,
     created_at: r.createdAt,
   }));
   await db.from("receipts").insert(rows);
@@ -230,10 +244,14 @@ export async function recordPayment(p: Omit<Payment, "id" | "createdAt">): Promi
       id: randomUUID(),
       service_slug: p.serviceSlug,
       buyer_address: p.buyerAddress,
+      seller_address: p.sellerAddress ?? null,
       amount: p.amount,
       status: p.status,
       tx_hash: p.txHash ?? null,
       network: p.network,
+      asset: p.asset ?? null,
+      mode: p.mode ?? "testnet",
+      verified_at: p.verifiedAt ?? null,
       created_at: now,
     };
     const { data, error } = await db.from("payments").insert(row).select().single();
@@ -264,11 +282,16 @@ export async function recordReceipt(r: Omit<Receipt, "id" | "createdAt">): Promi
       payment_id: r.paymentId,
       service_slug: r.serviceSlug,
       payer: r.payer,
+      seller_address: r.sellerAddress ?? null,
       amount: r.amount,
       result_hash: r.resultHash,
+      request_hash: r.requestHash ?? null,
       rating: r.rating ?? null,
       onchain_tx: r.onchainTx ?? null,
       block_number: r.blockNumber ?? null,
+      mode: r.mode ?? "testnet",
+      settlement_ref: r.settlementRef ?? null,
+      contract_address: r.contractAddress ?? null,
       created_at: now,
     };
     const { data, error } = await db.from("receipts").insert(row).select().single();
@@ -292,6 +315,15 @@ export async function listReceipts(): Promise<Receipt[]> {
     return data.map(rowToReceipt);
   }
   return mem().receipts;
+}
+
+export async function getReceipt(id: string): Promise<Receipt | undefined> {
+  if (db) {
+    const { data, error } = await db.from("receipts").select("*").eq("id", id).single();
+    if (error || !data) return undefined;
+    return rowToReceipt(data);
+  }
+  return mem().receipts.find((r) => r.id === id);
 }
 
 export async function updateReceiptOnchainTx(id: string, onchainTx: string): Promise<void> {
@@ -319,6 +351,7 @@ export async function rateReceipt(id: string, rating: number): Promise<Receipt |
 
 export async function getSellers(): Promise<SellerStats[]> {
   const [services, receipts] = await Promise.all([getAllServices(), listReceipts()]);
+  const trustedReceipts = receipts.filter(isTrustedReceipt);
 
   const slugToSeller = new Map<string, { address: string; name: string }>();
   for (const s of services) slugToSeller.set(s.slug, { address: s.sellerAddress, name: s.sellerName });
@@ -342,7 +375,7 @@ export async function getSellers(): Promise<SellerStats[]> {
     if (s.createdAt < a.firstSeen) a.firstSeen = s.createdAt;
   }
 
-  for (const r of receipts) {
+  for (const r of trustedReceipts) {
     const owner = slugToSeller.get(r.serviceSlug);
     if (!owner) continue;
     const a = ensure(owner.address, owner.name, r.createdAt);

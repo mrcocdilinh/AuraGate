@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { ProbeResult } from "@/lib/x402-probe";
+import { loadSessionCreds } from "@/lib/wallet-client";
 
 function ProbeChecklist({ result }: { result: ProbeResult }) {
   const icon = (s: string) => (s === "pass" ? "✓" : s === "warn" ? "!" : "✕");
@@ -120,11 +121,13 @@ export function RegisterService({
   async function submit() {
     setBusy(true);
     setMsg(null);
+    const creds = loadSessionCreds();
     const res = await fetch("/api/services", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         ...form,
+        userToken: creds?.userToken,
         sellerAddress: address ?? "0x0000000000000000000000000000000000000000",
         sellerName: form.sellerName || sellerName || "You",
       }),
@@ -147,7 +150,13 @@ export function RegisterService({
       }
       onCreated?.();
     } else {
-      setMsg({ ok: false, text: data.error ?? "Failed to list service" });
+      setMsg({
+        ok: false,
+        text:
+          data.error === "owner_authorization_required"
+            ? "Connect a real Circle wallet session before listing a production service."
+            : data.error ?? "Failed to list service",
+      });
     }
     setBusy(false);
   }

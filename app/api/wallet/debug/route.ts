@@ -4,9 +4,12 @@ import { circleConfigured, CIRCLE_APP_ID } from "@/lib/circle";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  if (process.env.ENABLE_DEBUG_ROUTES !== "true") {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
   const configured = circleConfigured();
   const appId = CIRCLE_APP_ID;
-  const apiKeyPreview = (process.env.CIRCLE_API_KEY ?? "").slice(0, 20) + "...";
+  const apiKeyPreview = "(redacted)";
 
   if (!configured) {
     return NextResponse.json({ configured: false, appId, apiKeyPreview });

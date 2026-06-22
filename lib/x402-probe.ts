@@ -55,7 +55,7 @@ export async function probeX402Endpoint(
   try {
     res = await fetch(url, {
       method: m,
-      redirect: "follow",
+      redirect: "manual",
       signal: AbortSignal.timeout(5000),
       headers: m === "POST" ? { "content-type": "application/json" } : {},
       ...(m === "POST" ? { body: "{}" } : {}),
@@ -84,6 +84,22 @@ export async function probeX402Endpoint(
     status: "pass",
     detail: `Responded with HTTP ${res.status}.`,
   });
+
+  if (res.status >= 300 && res.status < 400) {
+    checks.push({
+      label: "Endpoint does not redirect",
+      status: "fail",
+      detail:
+        "Redirects are not followed during verification. Use the final public x402 endpoint URL.",
+    });
+    return {
+      ok: false,
+      reachable: true,
+      status: res.status,
+      checks,
+      summary: `Returned redirect ${res.status}, not a direct x402 challenge`,
+    };
+  }
 
   // ── 2. Returns 402 when unpaid ──────────────────────────────────────────────
   if (res.status !== 402) {

@@ -33,10 +33,14 @@ export interface Payment {
   id: string;
   serviceSlug: string;
   buyerAddress: string;
+  sellerAddress?: string;
   amount: string;
   status: "settled" | "pending" | "failed";
   txHash?: string;
   network: string;
+  asset?: string;
+  mode?: "mock" | "testnet" | "mainnet";
+  verifiedAt?: string;
   createdAt: string;
 }
 
@@ -45,11 +49,16 @@ export interface Receipt {
   paymentId: string;
   serviceSlug: string;
   payer: string;
+  sellerAddress?: string;
   amount: string;
   resultHash: string;
+  requestHash?: string;
   rating?: number;
   onchainTx?: string;
   blockNumber?: number;
+  mode?: "mock" | "testnet" | "mainnet";
+  settlementRef?: string;
+  contractAddress?: string;
   createdAt: string;
 }
 

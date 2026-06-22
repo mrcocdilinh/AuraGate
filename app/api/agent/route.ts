@@ -41,12 +41,15 @@ export async function GET(req: NextRequest) {
     },
     protocol: { name: "x402", version: 2, settlement: "circle-gateway" },
     network: {
-      name: "Arc Testnet",
+      name: ARC.mode === "mainnet" ? "Arc Mainnet" : "Arc Testnet",
       chainId: ARC.chainId,
       caip2: ARC.caip2,
+      mode: ARC.mode,
       asset: "USDC",
       assetAddress: ARC.usdcAddress,
       explorer: ARC.explorer,
+      receiptRegistry: ARC.receiptRegistry,
+      receiptRegistryVersion: ARC.receiptRegistryVersion,
     },
     payment: {
       mode: x402Info.mode,

@@ -1,11 +1,13 @@
 import { ARC } from "./arc";
 import { FLEET_ADDRESSES } from "./fleet-agents";
 
-const MODE = (process.env.X402_MODE ?? "mock").toLowerCase();
+const MODE = (process.env.X402_MODE ?? "mock").trim().toLowerCase();
 const SELLER_ADDRESS =
-  process.env.SELLER_ADDRESS ?? "0x0000000000000000000000000000000000000000";
+  (process.env.SELLER_ADDRESS ?? "0x0000000000000000000000000000000000000000").trim();
 const FACILITATOR_URL =
-  process.env.GATEWAY_FACILITATOR_URL ?? "https://gateway-api-testnet.circle.com";
+  (process.env.GATEWAY_FACILITATOR_URL ?? "https://gateway-api-testnet.circle.com").trim();
+const NETWORK_MODE = (process.env.NEXT_PUBLIC_NETWORK_MODE ?? "testnet").trim().toLowerCase();
+const ALLOW_LIVE_DEMO_PAYERS = process.env.ALLOW_DEMO_PAYERS_IN_LIVE === "true";
 
 export const X402_VERSION = 2;
 
@@ -19,6 +21,7 @@ export interface PaymentResult {
   payer: string;
   amount: string;
   network: string;
+  mode: "mock" | "testnet" | "mainnet";
   transaction?: string;
 }
 
@@ -72,7 +75,8 @@ export async function processPayment(
   payTo = SELLER_ADDRESS
 ): Promise<X402Outcome> {
   const xPayer = req.headers.get("x-payer") ?? "";
-  const isDemo = MODE !== "live" || DEMO_PAYERS.some((d) => d.toLowerCase() === xPayer.toLowerCase());
+  const knownDemoPayer = DEMO_PAYERS.some((d) => d.toLowerCase() === xPayer.toLowerCase());
+  const isDemo = MODE !== "live" || (ALLOW_LIVE_DEMO_PAYERS && knownDemoPayer);
 
   if (isDemo) {
     const header =
@@ -86,7 +90,7 @@ export async function processPayment(
     const payer = xPayer || "0xA9e7000000000000000000000000000000000Bob";
     return {
       kind: "paid",
-      payment: { paid: true, payer, amount: price, network: ARC.caip2 },
+      payment: { paid: true, payer, amount: price, network: ARC.caip2, mode: "mock" },
     };
   }
 
@@ -164,6 +168,7 @@ export async function processPayment(
         payer: p.payer,
         amount: price,
         network: p.network ?? ARC.caip2,
+        mode: NETWORK_MODE === "mainnet" ? "mainnet" : "testnet",
         transaction: p.transaction,
       },
       responseHeaders: resHeaders["PAYMENT-RESPONSE"]

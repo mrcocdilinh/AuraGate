@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getService, recordPayment, recordReceipt, updateReceiptOnchainTx } from "@/lib/store";
 import { processPayment } from "@/lib/x402";
-import { resultHash } from "@/lib/format";
+import { requestHash, resultHash } from "@/lib/hash";
 import { writeReceiptOnChain } from "@/lib/onchain";
 import { ARC } from "@/lib/arc";
 import { produceServiceData } from "@/lib/service-providers";
@@ -28,26 +28,44 @@ async function handle(req: NextRequest, slug: string) {
   const p = await recordPayment({
     serviceSlug: slug,
     buyerAddress: payment.payer,
+    sellerAddress: payTo,
     amount: payment.amount,
     status: "settled",
     txHash: payment.transaction,
     network: payment.network,
+    asset: ARC.usdcAddress,
+    mode: payment.mode,
+    verifiedAt: new Date().toISOString(),
   });
   const hash = resultHash(body);
+  const reqHash = requestHash({
+    method: req.method,
+    url: req.url,
+    serviceSlug: slug,
+    payer: payment.payer,
+  });
   const receipt = await recordReceipt({
     paymentId: p.id,
     serviceSlug: slug,
     payer: payment.payer,
+    sellerAddress: payTo,
     amount: payment.amount,
     resultHash: hash,
+    requestHash: reqHash,
     onchainTx: payment.transaction,
+    mode: payment.mode,
+    settlementRef: payment.transaction,
+    contractAddress: ARC.receiptRegistry,
   });
 
   writeReceiptOnChain({
     payer: payment.payer,
+    seller: payTo,
     serviceSlug: slug,
     amountUsd: payment.amount,
     resultHash: hash,
+    requestHash: reqHash,
+    settlementRef: payment.transaction,
   }).then(async (tx) => {
     if (tx) {
       await updateReceiptOnchainTx(receipt.id, tx);

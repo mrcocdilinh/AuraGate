@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listServices, listReceipts, getSellers } from "@/lib/store";
 import { usd, shortAddr } from "@/lib/format";
 import { ReputationBar, Stars } from "@/components/ui";
+import { isTrustedReceipt } from "@/lib/trust";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,9 @@ export default async function Home() {
     listReceipts(),
     getSellers(),
   ]);
-  const revenue = receipts.reduce((a, r) => a + Number(r.amount), 0);
-  const buyers = new Set(receipts.map((r) => r.payer)).size;
+  const trustedReceipts = receipts.filter(isTrustedReceipt);
+  const revenue = trustedReceipts.reduce((a, r) => a + Number(r.amount), 0);
+  const buyers = new Set(trustedReceipts.map((r) => r.payer)).size;
   const topSellers = sellers.slice(0, 3);
 
   return (
@@ -57,7 +59,7 @@ export default async function Home() {
         <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-6 rounded-2xl border border-line bg-panel/50 px-8 py-5 text-center">
           {[
             ["Services", services.length],
-            ["Requests paid", receipts.length],
+            ["Requests paid", trustedReceipts.length],
             ["Revenue (USDC)", usd(revenue)],
             ["Unique buyers", buyers],
           ].map(([label, val]) => (

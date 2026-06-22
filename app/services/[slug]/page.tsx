@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { getService, listReceipts } from "@/lib/store";
 import { usd } from "@/lib/format";
+import { isTrustedReceipt } from "@/lib/trust";
 import { CategoryPill, Stars, VerifiedBadge, CopyButton } from "@/components/ui";
 import { TryService } from "./try-service";
 
@@ -45,7 +46,7 @@ export default async function ServiceDetail({
   if (!service) notFound();
 
   const callUrl = service.externalUrl ?? `${base}${service.endpoint}`;
-  const receipts = allReceipts.filter((r) => r.serviceSlug === slug);
+  const receipts = allReceipts.filter((r) => r.serviceSlug === slug && isTrustedReceipt(r));
   const rated = receipts.filter((r) => r.rating);
   const avg =
     rated.length > 0

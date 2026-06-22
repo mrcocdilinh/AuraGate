@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,10 @@ export const dynamic = "force-dynamic";
  * The client SDK executes the challenge to show the PIN setup modal.
  */
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "wallet:init-pin", 20, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "retry-after": String(limited.retryAfter) } });
+  }
   const b = await req.json().catch(() => null);
   const userToken = b?.userToken as string | undefined;
   if (!userToken) {

@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createEmailDeviceToken, CIRCLE_APP_ID } from "@/lib/circle";
+import { rateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 /** Mint a device token for Email OTP login (also triggers the OTP email). */
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, "wallet:email-token", 10, 60_000);
+  if (!limited.ok) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: { "retry-after": String(limited.retryAfter) } });
+  }
   const b = await req.json().catch(() => null);
   const deviceId = b?.deviceId as string | undefined;
   const email = b?.email as string | undefined;
