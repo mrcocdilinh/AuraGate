@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Receipt } from "@/lib/types";
 import { usd, shortAddr, timeAgo } from "@/lib/format";
-import { ARC, explorerTx, explorerAddress } from "@/lib/arc";
+import { ARC } from "@/lib/arc";
 import { Stars } from "@/components/ui";
 import { loadSessionCreds } from "@/lib/wallet-client";
 
@@ -95,8 +95,17 @@ function SellerRatings({ receipts }: { receipts: Receipt[] }) {
 
 const PAGE_SIZES = [50, 100, 200];
 
+type AgentNetwork = {
+  name?: string;
+  caip2?: string;
+  explorer?: string;
+  receiptRegistry?: string;
+  receiptRegistryVersion?: string;
+};
+
 export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [network, setNetwork] = useState<AgentNetwork | null>(null);
   const [filterService, setFilterService] = useState("");
   const [filterPayer, setFilterPayer] = useState("");
   const [pageSize, setPageSize] = useState(50);
@@ -110,6 +119,13 @@ export default function ReceiptsPage() {
     load();
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/agent", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((manifest) => setNetwork(manifest.network ?? null))
+      .catch(() => setNetwork(null));
   }, []);
 
   async function rate(id: string, rating: number) {
@@ -154,6 +170,13 @@ export default function ReceiptsPage() {
   );
   const rangeStart = filtered.length === 0 ? 0 : safePage * pageSize + 1;
   const rangeEnd = Math.min(filtered.length, safePage * pageSize + pageSize);
+  const explorer = network?.explorer ?? ARC.explorer;
+  const registry = network?.receiptRegistry ?? ARC.receiptRegistry;
+  const registryVersion = network?.receiptRegistryVersion ?? ARC.receiptRegistryVersion;
+  const chainName = network?.name ?? "Arc Testnet";
+  const caip2 = network?.caip2 ?? ARC.caip2;
+  const explorerTx = (hash: string) => `${explorer}/tx/${hash}`;
+  const explorerAddress = (address: string) => `${explorer}/address/${address}`;
 
   return (
     <div className="container-page py-10">
@@ -177,21 +200,26 @@ export default function ReceiptsPage() {
       {/* On-chain registry status */}
       <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-panel/50 px-4 py-2.5 text-xs">
         <span className="h-2 w-2 rounded-full bg-mint" />
-        <span className="text-muted">ReceiptRegistry on Arc Testnet:</span>
-        {ARC.receiptRegistry && ARC.receiptRegistry !== ZERO ? (
+        <span className="text-muted">ReceiptRegistry on {chainName}:</span>
+        {registry && registry !== ZERO ? (
           <a
-            href={explorerAddress(ARC.receiptRegistry)}
+            href={explorerAddress(registry)}
             target="_blank"
             rel="noreferrer"
             className="font-mono text-primary hover:underline"
           >
-            {ARC.receiptRegistry}
+            {registry}
           </a>
         ) : (
           <span className="font-mono text-amber">
             not deployed yet — receipts are stored off-chain until the contract is live
           </span>
         )}
+        {registry && registry !== ZERO && registryVersion === "2" ? (
+          <span className="rounded-full border border-mint/30 px-2 py-0.5 font-mono text-[10px] uppercase text-mint">
+            v2
+          </span>
+        ) : null}
       </div>
 
       {/* Filters */}
@@ -349,8 +377,8 @@ export default function ReceiptsPage() {
       <SellerRatings receipts={receipts} />
 
       <p className="mt-4 text-xs text-muted">
-        On-chain receipts settle to the ReceiptRegistry on Arc Testnet (
-        <span className="font-mono">{ARC.caip2}</span>).
+        On-chain receipts settle to the ReceiptRegistry on {chainName} (
+        <span className="font-mono">{caip2}</span>).
       </p>
     </div>
   );
