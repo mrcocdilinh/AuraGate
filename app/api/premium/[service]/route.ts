@@ -5,13 +5,14 @@ import { resultHash } from "@/lib/format";
 import { writeReceiptOnChain } from "@/lib/onchain";
 import { ARC } from "@/lib/arc";
 import { produceServiceData } from "@/lib/service-providers";
+import { withCors, corsPreflight } from "@/lib/cors";
 
 export const dynamic = "force-dynamic";
 
 async function handle(req: NextRequest, slug: string) {
   const service = await getService(slug);
   if (!service || !service.active) {
-    return NextResponse.json({ error: "service_not_found" }, { status: 404 });
+    return withCors(NextResponse.json({ error: "service_not_found" }, { status: 404 }));
   }
 
   const payTo = /^0x[0-9a-fA-F]{40}$/.test(service.sellerAddress)
@@ -19,7 +20,7 @@ async function handle(req: NextRequest, slug: string) {
     : (process.env.SELLER_ADDRESS ?? "0x0000000000000000000000000000000000000000");
   const outcome = await processPayment(req, service.price, payTo);
   if (outcome.kind === "challenge") {
-    return outcome.response;
+    return withCors(outcome.response);
   }
   const payment = outcome.payment;
 
@@ -54,17 +55,19 @@ async function handle(req: NextRequest, slug: string) {
     }
   });
 
-  return NextResponse.json(body, {
-    status: 200,
-    headers: {
-      "x-payment-network": payment.network,
-      "x-receipt-id": receipt.id,
-      "x-result-hash": hash,
-      ...(payment.transaction ? { "x-settlement-tx": payment.transaction } : {}),
-      "x-arc-explorer": ARC.explorer,
-      ...(outcome.responseHeaders ?? {}),
-    },
-  });
+  return withCors(
+    NextResponse.json(body, {
+      status: 200,
+      headers: {
+        "x-payment-network": payment.network,
+        "x-receipt-id": receipt.id,
+        "x-result-hash": hash,
+        ...(payment.transaction ? { "x-settlement-tx": payment.transaction } : {}),
+        "x-arc-explorer": ARC.explorer,
+        ...(outcome.responseHeaders ?? {}),
+      },
+    })
+  );
 }
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ service: string }> }) {
@@ -73,4 +76,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ service: st
 
 export async function POST(req: NextRequest, ctx: { params: Promise<{ service: string }> }) {
   return handle(req, (await ctx.params).service);
+}
+
+export async function OPTIONS() {
+  return corsPreflight();
 }

@@ -1,4 +1,5 @@
 import { ARC } from "./arc";
+import { FLEET_ADDRESSES } from "./fleet-agents";
 
 const MODE = (process.env.X402_MODE ?? "mock").toLowerCase();
 const SELLER_ADDRESS =
@@ -53,6 +54,7 @@ export type X402Outcome =
 const DEMO_PAYERS = [
   "0xDemoAgent0000000000000000000000000000001", // playground browser agent
   "0xA9e7000000000000000000000000000000000Bob", // headless agent mock mode
+  ...FLEET_ADDRESSES, // 5 fleet demo agents (/fleet live demo)
 ];
 
 /**

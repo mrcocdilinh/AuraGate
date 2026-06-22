@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { listServices } from "@/lib/store";
 import { ARC } from "@/lib/arc";
 import { toAtomicUSDC, x402Info } from "@/lib/x402";
+import { withCors, corsPreflight } from "@/lib/cors";
 
 export const dynamic = "force-dynamic";
+
+export async function OPTIONS() {
+  return corsPreflight();
+}
 
 export async function GET(req: NextRequest) {
   const origin = new URL(req.url).origin;
@@ -24,7 +29,7 @@ export async function GET(req: NextRequest) {
     price: { amount: s.price, currency: "USDC", atomic: toAtomicUSDC(s.price) },
   }));
 
-  return NextResponse.json({
+  return withCors(NextResponse.json({
     name: "AuraGate",
     description:
       "Open, permissionless registry of x402 services on Arc with on-chain receipts and reputation. Pay USDC per request via x402 + Circle Gateway.",
@@ -50,5 +55,5 @@ export async function GET(req: NextRequest) {
         "Request the service URL. On 402, sign the X-PAYMENT authorization (EIP-3009) for the advertised amount and retry. A signed receipt is returned in the x-receipt-id header.",
     },
     services,
-  });
+  }));
 }
