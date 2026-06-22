@@ -55,20 +55,21 @@ export default function PlaygroundPage() {
 
       const method = (s.method ?? "GET").toUpperCase();
       const isPost = method === "POST";
-      const postBody = isPost ? JSON.stringify({ text: "AuraGate is a permissionless marketplace where AI agents pay USDC per request using the x402 protocol on Arc testnet." }) : undefined;
-      const postHeaders = isPost ? { "content-type": "application/json" } : {};
+      const sampleText = "AuraGate is a permissionless marketplace where AI agents pay USDC per request using the x402 protocol on Arc testnet.";
 
       const r1 = await fetch(s.url, { method });
       push({ kind: "402", text: `${s.name}: ${r1.status} Payment Required (${usd(price)})` });
 
+      const headers: Record<string, string> = {
+        "x-payment": btoa(JSON.stringify({ amount: s.price.amount, payer: payerAddress })),
+        "x-payer": payerAddress ?? "",
+      };
+      if (isPost) headers["content-type"] = "application/json";
+
       const r2 = await fetch(s.url, {
         method,
-        headers: {
-          ...postHeaders,
-          "x-payment": btoa(JSON.stringify({ amount: s.price.amount, payer: payerAddress })),
-          "x-payer": payerAddress ?? "",
-        },
-        ...(isPost ? { body: postBody } : {}),
+        headers,
+        ...(isPost ? { body: JSON.stringify({ text: sampleText }) } : {}),
       });
 
       if (!r2.ok) {
