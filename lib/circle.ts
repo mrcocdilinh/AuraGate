@@ -16,6 +16,8 @@
  * `demo: true` so local dev works without a Circle account.
  */
 
+import { ARC } from "./arc";
+
 const API_KEY = process.env.CIRCLE_API_KEY ?? "";
 export const CIRCLE_APP_ID = process.env.NEXT_PUBLIC_CIRCLE_APP_ID ?? "";
 
@@ -163,9 +165,9 @@ export async function initUsdcWithdrawal(params: {
   amount: string;
 }): Promise<WithdrawInit> {
   if (!circleConfigured()) return { error: "circle_not_configured" };
-  const usdc = process.env.NEXT_PUBLIC_USDC_ADDRESS ?? "";
-  if (!/^0x[a-fA-F0-9]{40}$/.test(usdc)) {
-    return { error: "usdc_not_configured", detail: "NEXT_PUBLIC_USDC_ADDRESS is unset" };
+  const usdc = ARC.usdcAddress;
+  if (!/^0x[a-fA-F0-9]{40}$/.test(usdc) || /^0x0+$/.test(usdc)) {
+    return { error: "usdc_not_configured", detail: "USDC address is not set" };
   }
 
   const c = await client();

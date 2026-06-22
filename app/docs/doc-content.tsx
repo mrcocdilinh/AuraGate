@@ -389,7 +389,7 @@ function Code({ code, label }: { code: string; label?: string }) {
 export type ServiceItem = { slug: string; name: string; sellerName: string; method: string; price: string };
 
 export function DocsContent({ services, base }: { services: ServiceItem[]; base: string }) {
-  const [lang, setLang] = useState<Lang>("vi");
+  const [lang, setLang] = useState<Lang>("en");
   const t = T[lang];
 
   const exSlug = (services.find((s) => s.slug === "oracle-check") ?? services[0])?.slug ?? "oracle-check";

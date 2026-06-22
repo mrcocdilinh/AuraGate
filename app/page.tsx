@@ -188,23 +188,23 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Featured seller */}
+      {/* Become a seller */}
       <section className="container-page mt-24 pb-24">
         <div className="card relative overflow-hidden p-7 sm:p-10">
           <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/20 blur-3xl" />
-          <span className="badge">First seller</span>
+          <span className="badge">Open registry</span>
           <h3 className="mt-4 max-w-2xl text-2xl font-bold sm:text-3xl">
-            AuraPredict joins as a paid{" "}
-            <span className="gradient-text">market-insight API</span>
+            List your own API and{" "}
+            <span className="gradient-text">get paid per request</span>
           </h3>
           <p className="mt-3 max-w-2xl text-sm text-muted">
-            The AuraPredict prediction-market indexer is listed on AuraGate as a
-            paid oracle/insight service — proving the registry works with a real
-            product, not just a demo.
+            Anyone can sell — no application, no waitlist, no KYC. Host an x402
+            endpoint (or use a free hosted demo), register it in a minute, and USDC
+            lands in your wallet the moment an agent calls it.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/services/market-insight" className="btn-primary">
-              View the service
+            <Link href="/sell" className="btn-primary">
+              Sell your API →
             </Link>
             <Link href="/services" className="btn-ghost">
               Browse all {services.length} services →

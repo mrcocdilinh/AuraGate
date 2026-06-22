@@ -16,14 +16,6 @@ function svc(s: Omit<Service, "sellerAddress" | "endpoint" | "active"> & { endpo
 export const SEED_SERVICES: Service[] = [
   // ═══ CRYPTO ═══════════════════════════════════════════════════════════════
   svc({
-    slug: "market-insight", name: "AuraPredict Market Insight", category: "market-insight",
-    sellerName: "AuraPredict", price: "0.01", method: "GET",
-    description: "Paid oracle receipt & prediction-market insight. Live market odds, evidence quality and a resolution-risk score from the AuraPredict indexer on Arc.",
-    docsUrl: "https://aurapredict.xyz", tags: ["prediction", "odds", "resolution-risk", "oracle"], verified: true,
-    sampleResponse: { market: "Will ETH close above $4000 on 2026-07-01?", yesOdds: 0.62, noOdds: 0.38, evidenceQuality: "high", resolutionRisk: 0.12 },
-    createdAt: "2026-06-01T00:00:00.000Z",
-  }),
-  svc({
     slug: "oracle-check", name: "Crypto Price Oracle", category: "oracle",
     sellerName: "OracleWorks", price: "0.005", method: "GET",
     description: "Spot prices, 24h change and market cap for any coins via CoinGecko. Add ?coins=bitcoin,ethereum,dogecoin (CoinGecko ids). Defaults to BTC/ETH/SOL.",

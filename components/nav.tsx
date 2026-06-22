@@ -49,9 +49,9 @@ export function Nav() {
         {/* Right side: distinct "sell" action + wallet */}
         <div className="hidden items-center gap-2 md:flex">
           <Link
-            href="/dashboard"
+            href="/sell"
             title="List your own API and get paid"
-            className={`btn-ghost !px-3 !py-2 text-sm ${isActive("/dashboard") ? "!border-primary/60 !text-ink" : ""}`}
+            className={`btn-ghost !px-3 !py-2 text-sm ${isActive("/sell") || isActive("/dashboard") || isActive("/profile") ? "!border-primary/60 !text-ink" : ""}`}
           >
             + Sell your API
           </Link>
@@ -82,7 +82,7 @@ export function Nav() {
               </Link>
             ))}
             <Link
-              href="/dashboard"
+              href="/sell"
               onClick={() => setOpen(false)}
               className="mt-1 flex items-center gap-2.5 rounded-lg border border-primary/40 px-3 py-2.5 text-sm font-semibold text-ink"
             >
