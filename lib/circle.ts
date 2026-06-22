@@ -112,21 +112,100 @@ export async function createWalletChallenge(
 export async function getUserWalletAddress(
   userToken: string
 ): Promise<string | null> {
+  const w = await getUserArcWallet(userToken);
+  return w?.address ?? null;
+}
+
+interface ArcWallet {
+  id: string;
+  address: string;
+}
+
+/** Find the user's Arc wallet (id + address). Null if none / not configured. */
+export async function getUserArcWallet(
+  userToken: string
+): Promise<ArcWallet | null> {
   if (!circleConfigured()) return null;
   const c = await client();
   try {
     const res = await c.listWallets({ userToken } as never);
-    // TrimDataResponse strips one .data layer; the SDK type uses a nested data.wallets
-    // structure, so both access paths are tried for forward compatibility.
     const rawData = res.data as
-      | { wallets?: Array<{ blockchain?: string; address?: string }> }
+      | { wallets?: Array<{ id?: string; blockchain?: string; address?: string }> }
       | undefined;
     const wallets = rawData?.wallets ?? [];
     const arc =
       wallets.find((w) => w.blockchain === WALLET_BLOCKCHAIN && w.address) ??
       wallets.find((w) => w.address);
-    return arc?.address ?? null;
+    return arc?.id && arc.address ? { id: arc.id, address: arc.address } : null;
   } catch {
     return null;
+  }
+}
+
+export interface WithdrawInit {
+  /** Client SDK executes this to authorize the transfer (PIN-less for social). */
+  challengeId?: string;
+  error?: string;
+  detail?: string;
+}
+
+/**
+ * Start a USDC withdrawal (transfer out) from the user's Arc wallet to an
+ * external address. Returns a `challengeId` the client SDK executes to sign
+ * and broadcast — no PIN for social/email (PIN-less) users.
+ *
+ * Steps: find the Arc wallet → resolve the USDC token id on that wallet →
+ * createTransaction. Amount is a human USDC string (e.g. "1.50").
+ */
+export async function initUsdcWithdrawal(params: {
+  userToken: string;
+  destinationAddress: string;
+  amount: string;
+}): Promise<WithdrawInit> {
+  if (!circleConfigured()) return { error: "circle_not_configured" };
+  const usdc = process.env.NEXT_PUBLIC_USDC_ADDRESS ?? "";
+  if (!/^0x[a-fA-F0-9]{40}$/.test(usdc)) {
+    return { error: "usdc_not_configured", detail: "NEXT_PUBLIC_USDC_ADDRESS is unset" };
+  }
+
+  const c = await client();
+  const wallet = await getUserArcWallet(params.userToken);
+  if (!wallet) return { error: "no_wallet", detail: "No Arc wallet for this user" };
+
+  // Resolve the Circle token id for USDC on this wallet.
+  let tokenId = "";
+  try {
+    const bal = await c.getWalletTokenBalance({
+      userToken: params.userToken,
+      walletId: wallet.id,
+      tokenAddresses: [usdc],
+    } as never);
+    const balances = (bal.data as { tokenBalances?: Array<{ token?: { id?: string } }> })
+      ?.tokenBalances ?? [];
+    tokenId = balances[0]?.token?.id ?? "";
+  } catch {
+    /* fall through to error below */
+  }
+  if (!tokenId) {
+    return { error: "no_usdc_token", detail: "Wallet holds no USDC on Arc yet" };
+  }
+
+  try {
+    const tx = await c.createTransaction({
+      userToken: params.userToken,
+      walletId: wallet.id,
+      tokenId,
+      destinationAddress: params.destinationAddress,
+      amounts: [params.amount],
+      fee: { type: "level", config: { feeLevel: "MEDIUM" } },
+    } as never);
+    const challengeId = (tx.data as { challengeId?: string })?.challengeId;
+    if (!challengeId) return { error: "no_challenge", detail: "Circle returned no challengeId" };
+    return { challengeId };
+  } catch (e: unknown) {
+    const detail =
+      (e as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+      (e instanceof Error ? e.message : String(e));
+    return { error: "transfer_failed", detail };
   }
 }

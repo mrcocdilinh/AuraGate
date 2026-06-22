@@ -9,6 +9,7 @@ import {
   demoAddress,
   ensureWalletAddress,
   saveWallet,
+  saveSessionCreds,
 } from "@/lib/wallet-client";
 
 type Phase = "verifying" | "creating" | "done" | "error";
@@ -124,6 +125,14 @@ export default function GoogleCallbackPage() {
               // Surface the exact failure so it's diagnosable without the console.
               failPersist(`Wallet setup failed — ${walletError}`);
               return;
+            }
+
+            // Keep session creds so the user can withdraw USDC this session.
+            if (address) {
+              saveSessionCreds({
+                userToken: result.userToken,
+                encryptionKey: result.encryptionKey,
+              });
             }
 
             saveWallet({

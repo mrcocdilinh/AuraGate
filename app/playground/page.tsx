@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useWallet } from "@/components/wallet-provider";
 import { usd } from "@/lib/format";
 
 interface LogLine {
@@ -12,13 +11,14 @@ interface LogLine {
 const MOCK_AGENT = "0xDemoAgent0000000000000000000000000000001";
 
 export default function PlaygroundPage() {
-  const w = useWallet();
   const [log, setLog] = useState<LogLine[]>([]);
   const [spent, setSpent] = useState(0);
   const [limit, setLimit] = useState("0.10");
   const [running, setRunning] = useState(false);
 
-  const payerAddress = w.status === "connected" ? w.address : MOCK_AGENT;
+  // The playground always pays as the recognised demo agent (server bypasses
+  // the Gateway for it), so no real USDC moves — even with a wallet connected.
+  const payerAddress = MOCK_AGENT;
 
   function push(line: LogLine) {
     setLog((l) => [...l, line]);
@@ -124,10 +124,8 @@ export default function PlaygroundPage() {
           </div>
           <div className="mt-3 rounded-lg border border-line bg-surface p-3 text-xs text-muted">
             <span className="text-ink">Payer:</span>{" "}
-            <span className="font-mono">{payerAddress?.slice(0, 14)}…</span>
-            {w.status !== "connected" && (
-              <span className="ml-1 text-amber">(demo address)</span>
-            )}
+            <span className="font-mono">{payerAddress.slice(0, 14)}…</span>
+            <span className="ml-1 text-amber">(demo agent — no real USDC)</span>
           </div>
           <button
             className="btn-primary mt-4 w-full"
@@ -136,13 +134,9 @@ export default function PlaygroundPage() {
           >
             {running ? "Agent working…" : "Run agent"}
           </button>
-          {w.status !== "connected" && (
-            <p className="mt-2 text-center text-[11px] text-muted">
-              Running in mock mode · connect wallet for live USDC
-            </p>
-          )}
-          <p className="mt-3 text-[11px] text-muted">
-            Headless version: <code className="text-ink">npm run agent</code> in the repo.
+          <p className="mt-2 text-center text-[11px] text-muted">
+            Simulated demo — no real USDC moves. For real payments run{" "}
+            <code className="text-ink">npm run agent</code> with a funded wallet.
           </p>
         </div>
 

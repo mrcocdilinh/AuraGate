@@ -17,6 +17,43 @@ export interface StoredWallet {
 // localStorage / sessionStorage keys
 export const WALLET_KEY = "auragate.wallet";
 export const PENDING_GOOGLE_KEY = "auragate.pending-google";
+/** Short-lived Circle session creds, kept in sessionStorage only (this tab). */
+export const SESSION_CREDS_KEY = "auragate.session-creds";
+
+/**
+ * Circle session credentials needed to authorize later actions (e.g. a USDC
+ * withdrawal). The userToken is short-lived (~60min) and sensitive, so it lives
+ * in sessionStorage (cleared on tab close), never in the durable wallet blob.
+ */
+export interface SessionCreds {
+  userToken: string;
+  encryptionKey: string;
+}
+
+export function saveSessionCreds(c: SessionCreds) {
+  try {
+    sessionStorage.setItem(SESSION_CREDS_KEY, JSON.stringify(c));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function loadSessionCreds(): SessionCreds | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_CREDS_KEY);
+    return raw ? (JSON.parse(raw) as SessionCreds) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSessionCreds() {
+  try {
+    sessionStorage.removeItem(SESSION_CREDS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -131,6 +168,32 @@ async function executeChallenge(
         } else {
           resolve();
         }
+      }
+    );
+  });
+}
+
+/**
+ * Run a standalone Circle challenge (e.g. a withdrawal transfer) to completion.
+ * Unlike the login flow, this creates/reuses the W3SSdk singleton and attaches
+ * the session creds before executing — for PIN-less users it confirms silently,
+ * for PIN users it renders the PIN modal. Throws with the Circle error on fail.
+ */
+export async function runChallenge(
+  challengeId: string,
+  creds: SessionCreds
+): Promise<void> {
+  const { W3SSdk } = await import("@circle-fin/w3s-pw-web-sdk");
+  const sdk = new W3SSdk({ appSettings: { appId: PUBLIC_APP_ID } });
+  // Clear any stale loginConfigs so execute() opens the challenge iframe.
+  sdk.updateConfigs({ appSettings: { appId: PUBLIC_APP_ID } });
+  sdk.setAuthentication({ userToken: creds.userToken, encryptionKey: creds.encryptionKey });
+  return new Promise<void>((resolve, reject) => {
+    sdk.execute(
+      challengeId,
+      (error: { code?: number; message: string } | undefined) => {
+        if (error) reject(new Error(`${error.code ?? "?"}: ${error.message}`));
+        else resolve();
       }
     );
   });

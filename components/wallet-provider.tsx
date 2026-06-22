@@ -21,6 +21,8 @@ import {
   saveWallet,
   clearWallet,
   loadWallet,
+  saveSessionCreds,
+  clearSessionCreds,
 } from "@/lib/wallet-client";
 
 type Status = "disconnected" | "connecting" | "connected";
@@ -151,6 +153,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             });
             return;
           }
+          // Keep session creds so the user can withdraw USDC this session.
+          if (address) {
+            saveSessionCreds({
+              userToken: result.userToken,
+              encryptionKey: result.encryptionKey,
+            });
+          }
           persist({
             status: "connected",
             address: address ?? demoAddress(email),
@@ -258,6 +267,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    clearSessionCreds();
     persist({ status: "disconnected", demo: !circleReady() });
   }, []);
 

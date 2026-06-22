@@ -7,6 +7,7 @@ import type { ProbeResult } from "@/lib/x402-probe";
 import { usd, shortAddr, timeAgo } from "@/lib/format";
 import { Stat, VerifiedBadge } from "@/components/ui";
 import { useWallet } from "@/components/wallet-provider";
+import { WalletPanel } from "@/components/wallet-panel";
 
 // ── Revenue bar chart (pure SVG, no external deps) ───────────────────────────
 
@@ -162,6 +163,11 @@ export default function DashboardPage() {
         <Stat label="Requests paid" value={receipts.length} />
         <Stat label="Unique buyers" value={buyers} />
         <Stat label="Live services" value={services.length} />
+      </div>
+
+      {/* Wallet — balance + withdraw */}
+      <div className="mt-6">
+        <WalletPanel />
       </div>
 
       <div className="card mt-6 p-4">
