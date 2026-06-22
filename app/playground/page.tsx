@@ -61,8 +61,8 @@ export default function PlaygroundPage() {
       push({ kind: "402", text: `${s.name}: ${r1.status} Payment Required (${usd(price)})` });
 
       const headers: Record<string, string> = {
-        "x-payment": btoa(JSON.stringify({ amount: s.price.amount, payer: payerAddress })),
-        "x-payer": payerAddress ?? "",
+        "x-payment": btoa(JSON.stringify({ amount: s.price.amount, payer: MOCK_AGENT })),
+        "x-payer": MOCK_AGENT,
       };
       if (isPost) headers["content-type"] = "application/json";
 
