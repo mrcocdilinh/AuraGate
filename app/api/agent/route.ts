@@ -38,8 +38,10 @@ export async function GET(req: NextRequest) {
       register: `${origin}/api/services`,
       sellers: `${origin}/api/sellers`,
       receipts: `${origin}/api/receipts`,
+      discovery: `${origin}/.well-known/x402.json`,
+      skill: `${origin}/api/skill`,
     },
-    protocol: { name: "x402", version: 2, settlement: "circle-gateway" },
+    protocol: { name: "x402", version: 2, settlement: "circle-gateway", batching: true },
     network: {
       name: ARC.mode === "mainnet" ? "Arc Mainnet" : "Arc Testnet",
       chainId: ARC.chainId,
