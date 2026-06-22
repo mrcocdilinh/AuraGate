@@ -1,5 +1,15 @@
 # AuraGate — Project Context for Claude Code
 
+## ⚙️ Quy ước làm việc (BẮT BUỘC tuân theo)
+
+- **Push thẳng lên `main`.** Không tạo nhánh feature, không dùng nhánh trung gian
+  trừ khi user yêu cầu rõ ràng.
+- **Commit dưới danh tính cá nhân của user**, KHÔNG phải Claude:
+  - `git config user.name "mrcocdilinh"`
+  - `git config user.email "duongthaisang@gmail.com"`
+- **Không thêm** trailer `Co-Authored-By: Claude` hay bất kỳ dấu vết "Claude"
+  nào vào commit message / PR.
+
 ## Dự án là gì
 
 AuraGate là một **marketplace thanh toán cho AI agents** trên Arc blockchain.
