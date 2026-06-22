@@ -88,6 +88,11 @@ interface DB {
 const g = globalThis as unknown as { __ag?: DB };
 const RECEIPT_DEFAULT_LIMIT = 200;
 const RECEIPT_PAGE_SIZE = 1000;
+const RETIRED_SERVICE_SLUGS = new Set(["market-insight"]);
+
+function isRetiredService(slug: string): boolean {
+  return RETIRED_SERVICE_SLUGS.has(slug);
+}
 
 function mem(): DB {
   if (!g.__ag)
@@ -108,11 +113,13 @@ async function getAllServices(): Promise<Service[]> {
     if (!data || data.length === 0) {
       await seedSupabase();
       const { data: seeded } = await db.from("services").select("*").order("created_at", { ascending: false });
-      return (seeded ?? []).map(rowToService);
+      return (seeded ?? [])
+        .filter((r) => !isRetiredService(r.slug))
+        .map(rowToService);
     }
-    return data.map(rowToService);
+    return data.filter((r) => !isRetiredService(r.slug)).map(rowToService);
   }
-  return mem().services;
+  return mem().services.filter((s) => !isRetiredService(s.slug));
 }
 
 async function seedSupabase(): Promise<void> {
@@ -168,14 +175,19 @@ export async function listServices(): Promise<Service[]> {
     if (!all || all.length < SEED_SERVICES.length) {
       await seedSupabase();
       const { data: seeded } = await db.from("services").select("*").eq("active", true).order("created_at", { ascending: false });
-      return (seeded ?? []).map(rowToService);
+      return (seeded ?? [])
+        .filter((r) => r.active && !isRetiredService(r.slug))
+        .map(rowToService);
     }
-    return all.filter((r) => r.active).map(rowToService);
+    return all
+      .filter((r) => r.active && !isRetiredService(r.slug))
+      .map(rowToService);
   }
-  return mem().services.filter((s) => s.active);
+  return mem().services.filter((s) => s.active && !isRetiredService(s.slug));
 }
 
 export async function getService(slug: string): Promise<Service | undefined> {
+  if (isRetiredService(slug)) return undefined;
   if (db) {
     const { data } = await db.from("services").select("*").eq("slug", slug).single();
     return data ? rowToService(data) : undefined;

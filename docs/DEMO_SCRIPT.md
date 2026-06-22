@@ -71,8 +71,8 @@ mở `testnet.arcscan.app`.
 **Lời thoại:**
 > "And listing? Self-serve. A seller pastes their x402 endpoint, we health-check
 > it for a valid 402 response, and it's live in the registry instantly. No
-> gatekeeper. AuraPredict — our own prediction-market insight API — is the first
-> real seller here, not a fake demo."
+> gatekeeper. Sellers keep ownership of their endpoints and receive payments
+> directly."
 
 ---
 

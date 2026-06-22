@@ -50,7 +50,7 @@ npm run typecheck
 
 ## x402 payment flow
 
-1. Agent calls an endpoint (e.g. `/api/premium/market-insight`).
+1. Agent calls an endpoint (e.g. `/api/premium/oracle-check`).
 2. Server returns `402 Payment Required` + challenge (amount, payTo, network).
 3. Agent signs an `X-PAYMENT` header (EIP-3009 TransferWithAuthorization).
 4. Agent retries with the header.

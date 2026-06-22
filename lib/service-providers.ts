@@ -6,8 +6,7 @@
  * the upstream source is slow or down, the service still returns a sensible
  * `sample` payload (from the service's `sampleResponse`) instead of erroring.
  *
- * All sources here are free and keyless except `summarize` (optional GROQ key)
- * and `market-insight` (AuraPredict indexer).
+ * All sources here are free and keyless except `summarize` (optional GROQ key).
  */
 import type { NextRequest } from "next/server";
 
@@ -52,12 +51,6 @@ const cityFrom = (url: URL) => CITIES[(url.searchParams.get("city") ?? "hanoi").
 
 const providers: Record<string, Provider> = {
   // ═══ CRYPTO ═══════════════════════════════════════════════════════════════
-  "market-insight": async ({ now, fallback }) => {
-    const base = process.env.AURAPREDICT_INDEXER_URL ?? "https://api.aurapredict.xyz";
-    const stats = await getJson(`${base}/api/stats`);
-    return { source: "aurapredict-indexer", generatedAt: now, stats };
-  },
-
   "oracle-check": async ({ url, now }) => {
     // ?coins=bitcoin,ethereum,... (CoinGecko ids). Defaults to BTC/ETH/SOL.
     const ids = (url.searchParams.get("coins") ?? "bitcoin,ethereum,solana")

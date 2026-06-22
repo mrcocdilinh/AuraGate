@@ -8,13 +8,10 @@ AI agents có thể tìm API/dịch vụ, trả USDC theo từng request bằng 
 
 **Mục tiêu:** Pitch với Circle và Arc để được support/listing trong Agent Marketplace.
 
-## Tại sao AuraGate thay vì AuraPredict
+## Product direction
 
-- AuraPredict (prediction market) có rủi ro pháp lý, khó demo, settlement phức tạp.
 - AuraGate là payment infrastructure — đúng thesis của Circle (Agent Stack, x402,
-  Gateway nanopayments) và Arc (Agentic economy blueprint), ít legal risk hơn.
-- AuraPredict vẫn tồn tại, được đưa vào AuraGate làm **seller đầu tiên** (paid
-  market-insight API), biến nó thành service thay vì competitor.
+  Gateway nanopayments) và Arc (Agentic economy blueprint).
 
 ## Định vị so với Circle agents.circle.com
 
@@ -27,7 +24,6 @@ Trust không từ Circle approval mà từ on-chain receipts + earned reputation
 2. **On-chain reputation** — score 0-100 tổng hợp từ rating/demand/verified coverage.
 3. **External seller endpoints** — seller tự host, AuraGate health-check 402 khi đăng ký.
 4. **Receipt explorer public** — bằng chứng thanh toán on-chain, exportable CSV.
-5. **AuraPredict là seller thật** — không phải demo giả.
 
 ## Tech Stack
 
@@ -88,7 +84,7 @@ Next.js App Router
 
 ## x402 Payment Flow
 
-1. Agent gọi endpoint (vd `/api/premium/market-insight`)
+1. Agent gọi endpoint (vd `/api/premium/oracle-check`)
 2. Server trả `402 Payment Required` + challenge body (amount, payTo, network)
 3. Agent ký `X-PAYMENT` header (EIP-3009 TransferWithAuthorization)
 4. Agent retry với header đó
@@ -103,7 +99,7 @@ Next.js App Router
 
 ### ✅ Phase 1 — Scaffold xong
 - x402 paid endpoints (mock + live)
-- 4 seed services: AuraPredict market-insight, oracle-check, summarize, dataset
+- Seed catalog gồm các dịch vụ data, AI, oracle và market insight
 - Marketplace UI, service detail, seller dashboard, receipt explorer, agent playground
 - Headless buyer agent (`npm run agent`)
 - ReceiptRegistry.sol contract
@@ -158,7 +154,6 @@ NEXT_PUBLIC_RECEIPT_REGISTRY=0x...     # sau khi deploy contract
 BUYER_PRIVATE_KEY=0x...                # agent wallet (testnet only)
 AGENT_TARGET_URL=http://localhost:3000
 ANTHROPIC_API_KEY=...                  # optional, cho Claude summary trong agent
-AURAEDICT_INDEXER_URL=https://api.aurapredict.xyz
 CIRCLE_API_KEY=...                     # optional, cho real Circle wallets
 NEXT_PUBLIC_CIRCLE_APP_ID=...          # optional
 DEPLOYER_PRIVATE_KEY=0x...             # cho hardhat deploy
@@ -192,7 +187,6 @@ npm run deploy:receipts  # deploy ReceiptRegistry lên Arc Testnet
 - Mock mode không move real funds — dùng cho demo/local dev.
 - `tsconfig.json` exclude `agent/` vì agent dùng `tsx` riêng.
 - `next-env.d.ts` trong `.gitignore` — Next.js tự generate.
-- AuraPredict seller address là placeholder — cần thay bằng địa chỉ thật khi live.
 
 ---
 
