@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listServices, listReceipts, getSellers } from "@/lib/store";
+import { listServices, listAllReceipts, getSellers } from "@/lib/store";
 import { usd, shortAddr } from "@/lib/format";
 import { ReputationBar, Stars } from "@/components/ui";
 import { isTrustedReceipt } from "@/lib/trust";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const [services, receipts, sellers] = await Promise.all([
     listServices(),
-    listReceipts(),
+    listAllReceipts(),
     getSellers(),
   ]);
   const trustedReceipts = receipts.filter(isTrustedReceipt);

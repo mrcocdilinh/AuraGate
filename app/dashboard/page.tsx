@@ -8,6 +8,13 @@ import { useWallet } from "@/components/wallet-provider";
 import { SellerTabs } from "@/components/seller-tabs";
 import { isTrustedReceipt } from "@/lib/trust";
 
+type RegistryStats = {
+  services: number;
+  requests: number;
+  revenue: string;
+  buyers: number;
+};
+
 // ── Revenue bar chart (pure SVG, no external deps) ───────────────────────────
 
 function RevenueChart({ receipts, services }: { receipts: Receipt[]; services: Service[] }) {
@@ -70,6 +77,7 @@ function TopBuyers({ receipts }: { receipts: Receipt[] }) {
     map[r.payer].spent += Number(r.amount);
     map[r.payer].calls += 1;
   }
+  const uniqueCount = Object.keys(map).length;
   const rows = Object.entries(map)
     .map(([payer, v]) => ({ payer, ...v }))
     .sort((a, b) => b.spent - a.spent)
@@ -78,8 +86,8 @@ function TopBuyers({ receipts }: { receipts: Receipt[] }) {
   return (
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between p-5">
-        <h2 className="text-lg font-semibold">Top buyers</h2>
-        <span className="text-sm text-muted">{rows.length} unique</span>
+        <h2 className="text-lg font-semibold">Top buyers (latest 200)</h2>
+        <span className="text-sm text-muted">{uniqueCount} unique</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -120,14 +128,17 @@ export default function DashboardPage() {
   const w = useWallet();
   const [services, setServices] = useState<Service[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [stats, setStats] = useState<RegistryStats | null>(null);
 
   async function load() {
-    const [s, r] = await Promise.all([
+    const [s, r, aggregate] = await Promise.all([
       fetch("/api/services").then((x) => x.json()),
       fetch("/api/receipts").then((x) => x.json()),
+      fetch("/api/stats", { cache: "no-store" }).then((x) => x.json()),
     ]);
     setServices(s.services ?? []);
     setReceipts(r.receipts ?? []);
+    setStats(aggregate);
   }
 
   useEffect(() => {
@@ -137,8 +148,11 @@ export default function DashboardPage() {
   }, []);
 
   const trustedReceipts = receipts.filter(isTrustedReceipt);
-  const revenue = trustedReceipts.reduce((a, r) => a + Number(r.amount), 0);
-  const buyers = new Set(trustedReceipts.map((r) => r.payer)).size;
+  const recentRevenue = trustedReceipts.reduce((a, r) => a + Number(r.amount), 0);
+  const recentBuyers = new Set(trustedReceipts.map((r) => r.payer)).size;
+  const totalRevenue = stats ? Number(stats.revenue) : recentRevenue;
+  const totalRequests = stats?.requests ?? trustedReceipts.length;
+  const totalBuyers = stats?.buyers ?? recentBuyers;
 
   return (
     <div className="container-page py-10">
@@ -154,14 +168,14 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Revenue (USDC)" value={usd(revenue)} />
-        <Stat label="Requests paid" value={trustedReceipts.length} />
-        <Stat label="Unique buyers" value={buyers} />
-        <Stat label="Live services" value={services.length} />
+        <Stat label="Revenue (USDC)" value={usd(totalRevenue)} />
+        <Stat label="Requests paid" value={totalRequests} />
+        <Stat label="Unique buyers" value={totalBuyers} />
+        <Stat label="Live services" value={stats?.services ?? services.length} />
       </div>
 
       <div className="card mt-6 p-5">
-        <h2 className="mb-3 text-lg font-semibold">Revenue by service</h2>
+        <h2 className="mb-3 text-lg font-semibold">Revenue by service (latest 200)</h2>
         <RevenueChart receipts={trustedReceipts} services={services} />
       </div>
 

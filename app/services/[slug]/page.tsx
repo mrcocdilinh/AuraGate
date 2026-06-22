@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
-import { getService, listReceipts } from "@/lib/store";
+import { getService, listAllReceipts } from "@/lib/store";
 import { usd } from "@/lib/format";
 import { isTrustedReceipt } from "@/lib/trust";
 import { CategoryPill, Stars, VerifiedBadge, CopyButton } from "@/components/ui";
@@ -40,7 +40,7 @@ export default async function ServiceDetail({
   const { slug } = await params;
   const [service, allReceipts, base] = await Promise.all([
     getService(slug),
-    listReceipts(),
+    listAllReceipts(),
     origin(),
   ]);
   if (!service) notFound();
