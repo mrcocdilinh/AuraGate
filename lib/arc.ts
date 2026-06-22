@@ -5,7 +5,7 @@ export const ARC = {
   explorer: process.env.NEXT_PUBLIC_ARC_EXPLORER ?? "https://testnet.arcscan.app",
   usdcAddress:
     process.env.NEXT_PUBLIC_USDC_ADDRESS ??
-    "0x0000000000000000000000000000000000000000",
+    "0x3600000000000000000000000000000000000000",
   receiptRegistry:
     process.env.NEXT_PUBLIC_RECEIPT_REGISTRY ??
     "0x0000000000000000000000000000000000000000",
