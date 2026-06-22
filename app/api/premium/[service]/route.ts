@@ -186,6 +186,136 @@ async function produce(slug: string, fallback: unknown, req: NextRequest): Promi
       return { source: "sample", generatedAt: now, base: "USD", rates: { EUR: 0.92, VND: 25400 } };
     }
 
+    case "ip-info": {
+      const url = new URL(req.url);
+      const ip = url.searchParams.get("ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "";
+      const endpoint = ip ? `http://ip-api.com/json/${ip}` : "http://ip-api.com/json/";
+      try {
+        const r = await fetch(
+          `${endpoint}?fields=status,message,country,countryCode,region,city,zip,lat,lon,timezone,isp,org,query`,
+          { signal: AbortSignal.timeout(4000) }
+        );
+        if (r.ok) {
+          const d = await r.json();
+          if (d.status === "success") {
+            return {
+              source: "ip-api.com",
+              generatedAt: now,
+              ip: d.query,
+              country: d.country,
+              countryCode: d.countryCode,
+              region: d.region,
+              city: d.city,
+              lat: d.lat,
+              lon: d.lon,
+              timezone: d.timezone,
+              isp: d.isp,
+              org: d.org,
+            };
+          }
+        }
+      } catch { /* fall through */ }
+      return { source: "sample", generatedAt: now, ip: ip || "unknown", country: "Unknown", city: "Unknown" };
+    }
+
+    case "holidays": {
+      const url = new URL(req.url);
+      const country = (url.searchParams.get("country") ?? "US").toUpperCase().slice(0, 2);
+      const year = new Date().getFullYear();
+      try {
+        const r = await fetch(`https://date.nager.at/api/v3/publicholidays/${year}/${country}`, {
+          signal: AbortSignal.timeout(4000),
+          headers: { Accept: "application/json" },
+        });
+        if (r.ok) {
+          const data: Array<{ date: string; localName: string; name: string; countryCode: string; global: boolean }> = await r.json();
+          return {
+            source: "date.nager.at",
+            generatedAt: now,
+            country,
+            year,
+            count: data.length,
+            holidays: data.slice(0, 15).map((h) => ({ date: h.date, name: h.localName, nameEn: h.name, global: h.global })),
+          };
+        }
+      } catch { /* fall through */ }
+      return { source: "sample", generatedAt: now, country, year, holidays: [] };
+    }
+
+    case "country-info": {
+      const url = new URL(req.url);
+      const country = url.searchParams.get("country") ?? "Vietnam";
+      try {
+        const r = await fetch(
+          `https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fields=name,capital,population,region,subregion,currencies,languages,flags,area,timezones`,
+          { signal: AbortSignal.timeout(5000), headers: { Accept: "application/json" } }
+        );
+        if (r.ok) {
+          const data = await r.json();
+          const c = data[0];
+          return {
+            source: "restcountries.com",
+            generatedAt: now,
+            name: c.name?.common,
+            officialName: c.name?.official,
+            capital: c.capital?.[0],
+            population: c.population,
+            region: c.region,
+            subregion: c.subregion,
+            area: c.area,
+            currencies: c.currencies,
+            languages: c.languages,
+            timezones: c.timezones,
+            flag: c.flags?.emoji,
+          };
+        }
+      } catch { /* fall through */ }
+      return { source: "sample", generatedAt: now, name: country, population: 0 };
+    }
+
+    case "mempool": {
+      try {
+        const [feesRes, heightRes] = await Promise.all([
+          fetch("https://mempool.space/api/v1/fees/recommended", { signal: AbortSignal.timeout(5000) }),
+          fetch("https://mempool.space/api/blocks/tip/height", { signal: AbortSignal.timeout(5000) }),
+        ]);
+        const fees = feesRes.ok ? await feesRes.json() : null;
+        const blockHeight = heightRes.ok ? Number(await heightRes.text()) : null;
+        if (fees) {
+          return {
+            source: "mempool.space",
+            generatedAt: now,
+            blockHeight,
+            fees: {
+              fastestSat: fees.fastestFee,
+              halfHourSat: fees.halfHourFee,
+              hourSat: fees.hourFee,
+              economySat: fees.economyFee,
+              minimumSat: fees.minimumFee,
+            },
+            interpretation: `Fastest: ${fees.fastestFee} sat/vB · Economy: ${fees.economyFee} sat/vB`,
+          };
+        }
+      } catch { /* fall through */ }
+      return { source: "sample", generatedAt: now, fees: { fastestSat: 20, economySat: 4 }, blockHeight: null };
+    }
+
+    case "joke": {
+      try {
+        const r = await fetch("https://v2.jokeapi.dev/joke/Programming,Misc?type=single&safe-mode", {
+          signal: AbortSignal.timeout(4000),
+          headers: { Accept: "application/json" },
+        });
+        if (r.ok) {
+          const d = await r.json();
+          if (!d.error) {
+            return { source: "jokeapi.dev", generatedAt: now, category: d.category, joke: d.joke };
+          }
+        }
+      } catch { /* fall through */ }
+      return { source: "sample", generatedAt: now, category: "Programming", joke: "Why do programmers prefer dark mode? Because light attracts bugs." };
+    }
+
     default:
       return { generatedAt: now, data: fallback };
   }
