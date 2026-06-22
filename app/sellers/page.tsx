@@ -34,6 +34,7 @@ export default async function SellersPage() {
                 <th className="px-4 py-3">Rating</th>
                 <th className="px-4 py-3">Services</th>
                 <th className="px-4 py-3">Calls</th>
+                <th className="px-4 py-3" title="Distinct funded buyers (Sybil-resistant)">Buyers</th>
                 <th className="px-4 py-3">Revenue</th>
               </tr>
             </thead>
@@ -76,12 +77,13 @@ export default async function SellersPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted">{s.calls}</td>
+                  <td className="px-4 py-3 text-muted">{s.uniquePayers}</td>
                   <td className="px-4 py-3 font-semibold text-mint">{usd(s.revenue)}</td>
                 </tr>
               ))}
               {sellers.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-muted">
+                  <td colSpan={8} className="px-4 py-10 text-center text-muted">
                     No sellers yet.{" "}
                     <Link href="/dashboard" className="text-primary hover:underline">
                       List the first service →

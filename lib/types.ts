@@ -22,6 +22,10 @@ export interface Service {
   docsUrl?: string;
   /** Free-form discovery tags. */
   tags?: string[];
+  /** JSON-schema describing the request body / query params an agent must send. */
+  inputSchema?: unknown;
+  /** JSON-schema describing the response shape the agent receives. */
+  outputSchema?: unknown;
   sampleResponse: unknown;
   /** Endpoint passed a live 402 health-check at registration time. */
   verified?: boolean;
@@ -68,6 +72,8 @@ export interface SellerStats {
   name: string;
   services: number;
   calls: number;
+  /** Distinct non-self funded payers — the Sybil-resistant demand signal. */
+  uniquePayers: number;
   revenue: number;
   avgRating: number | null;
   ratedCount: number;

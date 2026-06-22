@@ -32,6 +32,8 @@ function rowToService(r: any): Service {
     externalUrl: r.external_url ?? undefined,
     docsUrl: r.docs_url ?? undefined,
     tags: r.tags ?? undefined,
+    inputSchema: r.input_schema ?? undefined,
+    outputSchema: r.output_schema ?? undefined,
     sampleResponse: r.sample_response,
     verified: r.verified ?? false,
     active: r.active,
@@ -213,6 +215,10 @@ export async function addService(
       external_url: input.externalUrl ?? null,
       docs_url: input.docsUrl ?? null,
       tags: input.tags ?? null,
+      // Only sent when provided — keeps inserts working on DBs that predate the
+      // input_schema/output_schema migration (supabase-schema.sql).
+      ...(input.inputSchema !== undefined ? { input_schema: input.inputSchema } : {}),
+      ...(input.outputSchema !== undefined ? { output_schema: input.outputSchema } : {}),
       sample_response: input.sampleResponse ?? { ok: true },
       verified: input.verified ?? false,
       active: true,
@@ -407,13 +413,16 @@ export async function getSellers(): Promise<SellerStats[]> {
   const slugToSeller = new Map<string, { address: string; name: string }>();
   for (const s of services) slugToSeller.set(s.slug, { address: s.sellerAddress, name: s.sellerName });
 
-  type Acc = Omit<SellerStats, "reputation"> & { ratingSum: number };
+  type Acc = Omit<SellerStats, "reputation" | "uniquePayers"> & {
+    ratingSum: number;
+    payers: Set<string>;
+  };
   const map = new Map<string, Acc>();
 
   const ensure = (address: string, name: string, createdAt: string): Acc => {
     let a = map.get(address);
     if (!a) {
-      a = { address, name, services: 0, calls: 0, revenue: 0, avgRating: null, ratedCount: 0, verifiedServices: 0, firstSeen: createdAt, ratingSum: 0 };
+      a = { address, name, services: 0, calls: 0, revenue: 0, avgRating: null, ratedCount: 0, verifiedServices: 0, firstSeen: createdAt, ratingSum: 0, payers: new Set() };
       map.set(address, a);
     }
     return a;
@@ -433,16 +442,28 @@ export async function getSellers(): Promise<SellerStats[]> {
     a.calls += 1;
     a.revenue += Number(r.amount);
     if (r.rating) { a.ratingSum += r.rating; a.ratedCount += 1; }
+    // Anti-Sybil: only count distinct payers that are NOT the seller themselves.
+    // A seller self-buying from one wallet pumps `calls` but not `uniquePayers`.
+    const payer = (r.payer ?? "").toLowerCase();
+    if (payer && payer !== owner.address.toLowerCase()) {
+      a.payers.add(payer);
+    }
   }
 
   return [...map.values()]
     .map((a) => {
       const avgRating = a.ratedCount > 0 ? a.ratingSum / a.ratedCount : null;
+      const uniquePayers = a.payers.size;
       const ratingScore = avgRating !== null ? (avgRating / 5) * 50 : 20;
-      const demandScore = Math.min(a.calls / 50, 1) * 30;
+      // Demand (30 pts) is Sybil-resistant: it rewards a diverse payer base and
+      // real settled volume, NOT raw call count. 1000 calls from one wallet →
+      // payerScore≈0. Volume is logarithmic so a few large payers can't dominate.
+      const payerScore = Math.min(uniquePayers / 15, 1);          // 15+ distinct buyers ⇒ full
+      const volumeScore = Math.min(Math.log10(a.revenue + 1) / 2, 1); // ~$100 settled ⇒ full
+      const demandScore = (payerScore * 0.7 + volumeScore * 0.3) * 30;
       const verifiedScore = a.services > 0 ? (a.verifiedServices / a.services) * 20 : 0;
       const reputation = Math.round(ratingScore + demandScore + verifiedScore);
-      return { address: a.address, name: a.name, services: a.services, calls: a.calls, revenue: a.revenue, avgRating, ratedCount: a.ratedCount, verifiedServices: a.verifiedServices, reputation, firstSeen: a.firstSeen } satisfies SellerStats;
+      return { address: a.address, name: a.name, services: a.services, calls: a.calls, uniquePayers, revenue: a.revenue, avgRating, ratedCount: a.ratedCount, verifiedServices: a.verifiedServices, reputation, firstSeen: a.firstSeen } satisfies SellerStats;
     })
     .sort((a, b) => b.reputation - a.reputation || b.revenue - a.revenue);
 }

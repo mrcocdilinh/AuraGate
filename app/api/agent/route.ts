@@ -26,6 +26,8 @@ export async function GET(req: NextRequest) {
     verified: Boolean(s.verified),
     ...(s.tags?.length ? { tags: s.tags } : {}),
     ...(s.docsUrl ? { docs: s.docsUrl } : {}),
+    ...(s.inputSchema ? { inputSchema: s.inputSchema } : {}),
+    ...(s.outputSchema ? { outputSchema: s.outputSchema } : {}),
     price: { amount: s.price, currency: "USDC", atomic: toAtomicUSDC(s.price) },
   }));
 
@@ -40,6 +42,7 @@ export async function GET(req: NextRequest) {
       receipts: `${origin}/api/receipts`,
       discovery: `${origin}/.well-known/x402.json`,
       skill: `${origin}/api/skill`,
+      verifyReceipt: `${origin}/api/receipts/{id}/verify`,
     },
     protocol: { name: "x402", version: 2, settlement: "circle-gateway", batching: true },
     network: {

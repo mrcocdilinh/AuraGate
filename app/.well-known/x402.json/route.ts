@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
       ...(s.tags?.length ? { tags: s.tags } : {}),
       ...(s.docsUrl ? { docsUrl: s.docsUrl } : {}),
       verified: Boolean(s.verified),
+      method: s.method,
       accepts: [
         {
           scheme: "exact",
@@ -49,7 +50,8 @@ export async function GET(req: NextRequest) {
           extra: { name: "USDC", decimals: 6 },
         },
       ],
-      outputSchema: inferOutputSchema(s.sampleResponse),
+      ...(s.inputSchema ? { inputSchema: s.inputSchema } : {}),
+      outputSchema: s.outputSchema ?? inferOutputSchema(s.sampleResponse),
     };
   });
 

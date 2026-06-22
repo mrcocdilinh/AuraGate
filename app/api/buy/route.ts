@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getService } from "@/lib/store";
-import { initUsdcWithdrawal } from "@/lib/circle";
+import { initUsdcWithdrawal, getUserWalletAddress } from "@/lib/circle";
 import { createPendingBuy } from "@/lib/pending-buys";
 import { rateLimit } from "@/lib/rate-limit";
+import { checkSpendPolicy, refundSpend } from "@/lib/spend-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Resolve the buyer wallet so spending controls are keyed to the real address.
+  const wallet = await getUserWalletAddress(String(b.userToken));
+  if (!wallet) {
+    return NextResponse.json(
+      { error: "no_wallet", detail: "No Arc wallet found for this session." },
+      { status: 400 }
+    );
+  }
+
+  // Spending controls: per-tx cap, rolling per-wallet cap, seller allow/blocklist.
+  // Reserves the amount up front; refunded below if the transfer fails to start.
+  const policy = checkSpendPolicy({
+    wallet,
+    seller: service.sellerAddress,
+    amountUsd: service.price,
+  });
+  if (!policy.ok) {
+    return NextResponse.json({ error: policy.error, detail: policy.detail }, { status: 403 });
+  }
+
   const transfer = await initUsdcWithdrawal({
     userToken: String(b.userToken),
     destinationAddress: service.sellerAddress,
@@ -48,6 +69,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (transfer.error) {
+    refundSpend(wallet, service.price); // release the reservation — nothing moved
     return NextResponse.json({ error: transfer.error, detail: transfer.detail }, { status: 400 });
   }
 

@@ -45,7 +45,8 @@ export async function GET(req: NextRequest) {
         process.env.GATEWAY_FACILITATOR_URL ??
         "https://gateway-api-testnet.circle.com",
     },
-    outputSchema: {
+    ...(s.inputSchema ? { inputSchema: s.inputSchema } : {}),
+    outputSchema: s.outputSchema ?? {
       type: "object",
       description: `Response from ${s.name}`,
       example: s.sampleResponse,

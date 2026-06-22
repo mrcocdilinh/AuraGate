@@ -20,6 +20,21 @@ export const SEED_SERVICES: Service[] = [
     sellerName: "OracleWorks", price: "0.005", method: "GET",
     description: "Spot prices, 24h change and market cap for any coins via CoinGecko. Add ?coins=bitcoin,ethereum,dogecoin (CoinGecko ids). Defaults to BTC/ETH/SOL.",
     tags: ["price", "spot", "coingecko", "settlement"], verified: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        coins: { type: "string", description: "Comma-separated CoinGecko ids", example: "bitcoin,ethereum" },
+      },
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        source: { type: "string" },
+        prices: { type: "object", description: "Map of coin id → { usd, change24h }" },
+        confidence: { type: "number", minimum: 0, maximum: 1 },
+      },
+      required: ["prices"],
+    },
     sampleResponse: { source: "coingecko", prices: { bitcoin: { usd: 67420, change24h: 2.3 } }, confidence: 0.99 },
     createdAt: "2026-06-03T00:00:00.000Z",
   }),
@@ -202,6 +217,21 @@ export const SEED_SERVICES: Service[] = [
     sellerName: "BriefBot", price: "0.02", method: "POST",
     description: "POST { text } and get a 3-bullet structured summary. Uses a Llama-3.3 LLM when available, with an extractive fallback. Pay-per-call, no API key.",
     tags: ["llm", "summary", "nlp", "ai"], verified: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "The text to summarize", minLength: 1 },
+      },
+      required: ["text"],
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        summary: { type: "string", description: "3-bullet structured summary" },
+        inputLength: { type: "number" },
+      },
+      required: ["summary"],
+    },
     sampleResponse: { summary: "• point one\n• point two\n• point three", inputLength: 512 },
     createdAt: "2026-06-12T00:00:00.000Z",
   }),

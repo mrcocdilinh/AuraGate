@@ -101,6 +101,24 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Optional JSON-schema descriptors — accept an object or a JSON string.
+  const parseSchema = (v: unknown): { ok: boolean; value?: unknown } => {
+    if (v === undefined || v === null || v === "") return { ok: true };
+    if (typeof v === "object") return { ok: true, value: v };
+    if (typeof v === "string") {
+      try { return { ok: true, value: JSON.parse(v) }; } catch { return { ok: false }; }
+    }
+    return { ok: false };
+  };
+  const inputParsed = parseSchema(b.inputSchema);
+  if (!inputParsed.ok) {
+    return NextResponse.json({ error: "inputSchema must be valid JSON" }, { status: 400 });
+  }
+  const outputParsed = parseSchema(b.outputSchema);
+  if (!outputParsed.ok) {
+    return NextResponse.json({ error: "outputSchema must be valid JSON" }, { status: 400 });
+  }
+
   // For seller-hosted endpoints, validate the x402 challenge live. We surface
   // the full diagnostic so the seller learns *why* it didn't verify.
   const probe = externalUrl
@@ -121,6 +139,8 @@ export async function POST(req: NextRequest) {
     externalUrl,
     docsUrl: b.docsUrl ? String(b.docsUrl).slice(0, 300) : undefined,
     tags,
+    inputSchema: inputParsed.value,
+    outputSchema: outputParsed.value,
     verified,
     sampleResponse,
   });

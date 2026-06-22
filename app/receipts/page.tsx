@@ -276,6 +276,7 @@ export default function ReceiptsPage() {
                 <th className="px-4 py-3">Payer</th>
                 <th className="px-4 py-3">Amount</th>
                 <th className="px-4 py-3">Result hash</th>
+                <th className="px-4 py-3">Proof</th>
                 <th className="px-4 py-3">When</th>
                 <th className="px-4 py-3">Rate</th>
               </tr>
@@ -307,6 +308,25 @@ export default function ReceiptsPage() {
                       </span>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-xs">
+                    <a
+                      href={`/api/receipts/${r.id}/verify`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary hover:underline"
+                      title="Open the verifiable, signed payment proof"
+                    >
+                      verify
+                    </a>
+                    <span className="mx-1 text-line">·</span>
+                    <a
+                      href={`/api/receipts/${r.id}/verify?download=1`}
+                      className="text-muted hover:text-ink"
+                      title="Download proof JSON"
+                    >
+                      ⤓
+                    </a>
+                  </td>
                   <td className="px-4 py-3 text-xs text-muted">
                     {timeAgo(r.createdAt)}
                   </td>
@@ -332,7 +352,7 @@ export default function ReceiptsPage() {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted">
+                  <td colSpan={7} className="px-4 py-10 text-center text-muted">
                     {receipts.length === 0
                       ? "No receipts yet. Buy a service to create the first one."
                       : "No receipts match the current filters."}

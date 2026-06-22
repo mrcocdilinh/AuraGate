@@ -13,6 +13,8 @@ create table if not exists services (
   external_url    text,
   docs_url        text,
   tags            text[],
+  input_schema    jsonb,
+  output_schema   jsonb,
   sample_response jsonb,
   verified        boolean not null default false,
   active          boolean not null default true,
@@ -71,6 +73,8 @@ alter table receipts add column if not exists request_hash text;
 alter table receipts add column if not exists mode text not null default 'testnet';
 alter table receipts add column if not exists settlement_ref text;
 alter table receipts add column if not exists contract_address text;
+alter table services add column if not exists input_schema jsonb;
+alter table services add column if not exists output_schema jsonb;
 
 -- Indexes for common queries
 create index if not exists receipts_service_slug_idx on receipts(service_slug);
