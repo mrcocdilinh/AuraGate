@@ -145,14 +145,15 @@ async function seedReceiptsSupabase(): Promise<void> {
 
 export async function listServices(): Promise<Service[]> {
   if (db) {
-    const { data, error } = await db.from("services").select("*").eq("active", true).order("created_at", { ascending: false });
+    const { data: all, error } = await db.from("services").select("*").order("created_at", { ascending: false });
     if (error) throw error;
-    if (!data || data.length === 0) {
+    // Re-seed (upsert) whenever DB has fewer slugs than the current seed file.
+    if (!all || all.length < SEED_SERVICES.length) {
       await seedSupabase();
       const { data: seeded } = await db.from("services").select("*").eq("active", true).order("created_at", { ascending: false });
       return (seeded ?? []).map(rowToService);
     }
-    return data.map(rowToService);
+    return all.filter((r) => r.active).map(rowToService);
   }
   return mem().services.filter((s) => s.active);
 }
