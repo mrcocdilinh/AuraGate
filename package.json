@@ -10,6 +10,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "agent": "tsx agent/run.mts",
+    "demo:crypto": "tsx agent/demo-crypto.mts",
     "seller:setup": "tsx scripts/seller-setup.mts",
     "compile": "hardhat compile",
     "deploy:receipts": "hardhat run scripts/deploy_receipts.cjs --network arcTestnet"
