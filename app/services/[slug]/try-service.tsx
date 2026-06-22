@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useWallet } from "@/components/wallet-provider";
+
+// Demo payer recognised by the server's x402 bypass, so "Try it" works even
+// when Vercel runs in live mode — no real USDC moves, no wallet needed.
+const DEMO_AGENT = "0xDemoAgent0000000000000000000000000000001";
 
 type Step = { label: string; status: number; body: unknown };
 
@@ -16,7 +19,6 @@ export function TryService({
   price: string;
   external?: boolean;
 }) {
-  const w = useWallet();
   const [steps, setSteps] = useState<Step[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -31,25 +33,27 @@ export function TryService({
         ...(method === "POST" ? { "content-type": "application/json" } : {}),
         ...(withPayment
           ? {
-              "x-payment": btoa(JSON.stringify({ price, payer: w.address, ts: Date.now() })),
-              "x-payer": w.address ?? "",
+              "x-payment": btoa(JSON.stringify({ price, payer: DEMO_AGENT, ts: Date.now() })),
+              "x-payer": DEMO_AGENT,
             }
           : {}),
       },
-      ...(method === "POST" ? { body: JSON.stringify({ text: "hello" }) } : {}),
+      ...(method === "POST"
+        ? { body: JSON.stringify({ text: "AuraGate lets AI agents pay USDC per request using the open x402 protocol on Arc testnet, with on-chain receipts as proof." }) }
+        : {}),
     });
 
     try {
       const r1 = await fetch(endpoint, opts(false));
       const b1 = await r1.json().catch(() => null);
-      setSteps([{ label: "Request without payment", status: r1.status, body: b1 }]);
+      setSteps([{ label: "1. Request without paying → server asks for payment", status: r1.status, body: b1 }]);
 
       const r2 = await fetch(endpoint, opts(true));
       const b2 = await r2.json().catch(() => null);
       setSteps((s) => [
         ...s,
         {
-          label: "Signed payment + retry",
+          label: "2. Pay + retry → data arrives with a receipt",
           status: r2.status,
           body: { receiptId: r2.headers.get("x-receipt-id"), data: b2 },
         },
@@ -68,17 +72,12 @@ export function TryService({
 
   return (
     <div className="mt-5">
-      <button
-        className="btn-primary w-full"
-        onClick={run}
-        disabled={busy || w.status !== "connected"}
-      >
-        {w.status !== "connected"
-          ? "Connect wallet to try"
-          : busy
-            ? "Running…"
-            : `Try it · ${price} USDC`}
+      <button className="btn-primary w-full" onClick={run} disabled={busy}>
+        {busy ? "Running…" : `▶ Try it now · ${price} USDC`}
       </button>
+      <p className="mt-2 text-center text-[11px] text-muted">
+        Free demo — no wallet or real money needed
+      </p>
       {external && (
         <p className="mt-2 text-[11px] text-muted">
           Seller-hosted endpoint — receipts are issued by the seller, not AuraGate.
@@ -87,13 +86,13 @@ export function TryService({
       {err && <p className="mt-2 text-[11px] text-amber">{err}</p>}
       {steps.map((s, i) => (
         <div key={i} className="mt-3 rounded-lg border border-line bg-bg p-3">
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between gap-2 text-xs">
             <span className="text-muted">{s.label}</span>
             <span className={s.status === 200 ? "font-bold text-mint" : "font-bold text-amber"}>
               {s.status}
             </span>
           </div>
-          <pre className="mt-2 max-h-40 overflow-auto font-mono text-[11px] text-muted">
+          <pre className="mt-2 max-h-48 overflow-auto font-mono text-[11px] text-muted">
             {JSON.stringify(s.body, null, 2)}
           </pre>
         </div>
