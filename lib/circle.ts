@@ -175,6 +175,9 @@ export async function initUsdcWithdrawal(params: {
   if (!wallet) return { error: "no_wallet", detail: "No Arc wallet for this user" };
 
   // Resolve the Circle token id for USDC on this wallet.
+  // Try with address filter first, then fall back to listing all tokens and
+  // matching by symbol — some Circle environments ignore the address filter.
+  type TokenBalance = { token?: { id?: string; symbol?: string; name?: string }; amount?: string };
   let tokenId = "";
   try {
     const bal = await c.getWalletTokenBalance({
@@ -182,14 +185,33 @@ export async function initUsdcWithdrawal(params: {
       walletId: wallet.id,
       tokenAddresses: [usdc],
     } as never);
-    const balances = (bal.data as { tokenBalances?: Array<{ token?: { id?: string } }> })
-      ?.tokenBalances ?? [];
+    const balances = ((bal.data as { tokenBalances?: TokenBalance[] })?.tokenBalances) ?? [];
     tokenId = balances[0]?.token?.id ?? "";
   } catch {
-    /* fall through to error below */
+    /* fall through */
   }
+
   if (!tokenId) {
-    return { error: "no_usdc_token", detail: "Wallet holds no USDC on Arc yet" };
+    // Fallback: list all tokens on the wallet and find USDC by symbol.
+    try {
+      const all = await c.getWalletTokenBalance({
+        userToken: params.userToken,
+        walletId: wallet.id,
+      } as never);
+      const balances = ((all.data as { tokenBalances?: TokenBalance[] })?.tokenBalances) ?? [];
+      const usdcEntry = balances.find(
+        (b) =>
+          b.token?.symbol?.toUpperCase() === "USDC" ||
+          b.token?.name?.toLowerCase().includes("usdc")
+      );
+      tokenId = usdcEntry?.token?.id ?? "";
+    } catch {
+      /* fall through */
+    }
+  }
+
+  if (!tokenId) {
+    return { error: "no_usdc_token", detail: "No USDC token found on this Arc wallet yet" };
   }
 
   try {

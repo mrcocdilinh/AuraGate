@@ -10,6 +10,7 @@ import { CopyButton } from "./ui";
 interface Balance {
   usdc: string;
   configured: boolean;
+  rpcError?: boolean;
 }
 
 /**
@@ -27,7 +28,7 @@ export function WalletPanel() {
     setLoadingBal(true);
     try {
       const r = await fetch(`/api/wallet/balance?address=${w.address}`).then((x) => x.json());
-      setBal({ usdc: r.usdc ?? "0", configured: !!r.configured });
+      setBal({ usdc: r.usdc ?? "0", configured: !!r.configured, rpcError: !!r.rpcError });
     } catch {
       setBal(null);
     }
@@ -85,7 +86,9 @@ export function WalletPanel() {
         <div>
           <p className="text-[11px] uppercase tracking-wide text-muted">USDC balance</p>
           <p className="mt-0.5 text-2xl font-bold text-ink">
-            {bal?.configured ? Number(bal.usdc).toLocaleString(undefined, { maximumFractionDigits: 6 }) : "—"}
+            {bal?.configured && !bal.rpcError
+              ? Number(bal.usdc).toLocaleString(undefined, { maximumFractionDigits: 6 })
+              : "—"}
             <span className="ml-1 text-sm font-medium text-muted">USDC</span>
           </p>
         </div>
@@ -95,8 +98,12 @@ export function WalletPanel() {
       </div>
       {bal && !bal.configured && (
         <p className="mt-2 text-[11px] text-muted">
-          On-chain balance unavailable — USDC contract address isn&apos;t configured for this
-          deployment, so the live balance can&apos;t be read.
+          USDC contract address not configured for this deployment.
+        </p>
+      )}
+      {bal?.rpcError && (
+        <p className="mt-2 text-[11px] text-amber">
+          Could not reach Arc RPC — balance unavailable. Hit ↻ Refresh to try again.
         </p>
       )}
 

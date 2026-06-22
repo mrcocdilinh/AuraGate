@@ -13,6 +13,7 @@ const LINKS = [
   { href: "/receipts", label: "Receipts", icon: "🧾", hint: "On-chain payment proof" },
   { href: "/playground", label: "Live demo", icon: "▶️", hint: "Watch an agent pay" },
   { href: "/docs", label: "Docs", icon: "📖", hint: "How to buy & list APIs" },
+  { href: "/dashboard", label: "Dashboard", icon: "📊", hint: "Revenue & analytics" },
 ];
 
 export function Nav() {
@@ -51,7 +52,7 @@ export function Nav() {
           <Link
             href="/sell"
             title="List your own API and get paid"
-            className={`btn-ghost !px-3 !py-2 text-sm ${isActive("/sell") || isActive("/dashboard") || isActive("/profile") ? "!border-primary/60 !text-ink" : ""}`}
+            className={`btn-ghost !px-3 !py-2 text-sm ${isActive("/sell") || isActive("/profile") ? "!border-primary/60 !text-ink" : ""}`}
           >
             + Sell your API
           </Link>

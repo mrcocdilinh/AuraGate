@@ -34,25 +34,31 @@ export interface BalanceResult {
   usdc: string;
   /** Raw atomic amount as a string. */
   raw: string;
-  /** False when USDC contract isn't configured (can't read real balance). */
+  /** False when USDC contract address isn't set in env. */
   configured: boolean;
+  /** True when address is configured but the RPC call failed. */
+  rpcError?: boolean;
 }
 
 /**
  * Read an address's on-chain USDC balance from Arc. Read-only (no auth, no
  * key) — works for any address, Circle wallet or otherwise. Returns a zeroed
  * result with `configured: false` when the USDC contract address isn't set,
- * so callers can show "—" instead of a misleading $0.00.
+ * or `rpcError: true` when the address is set but the RPC call failed.
  */
 export async function getUsdcBalance(address: string): Promise<BalanceResult> {
   const usdc = ARC.usdcAddress;
-  const base: BalanceResult = { address, usdc: "0", raw: "0", configured: false };
+  const notConfigured: BalanceResult = { address, usdc: "0", raw: "0", configured: false };
+  const rpcFail: BalanceResult = { address, usdc: "0", raw: "0", configured: true, rpcError: true };
 
-  if (!ETH_ADDR.test(address)) return base;
-  if (!ETH_ADDR.test(usdc) || usdc === ZERO) return base;
+  if (!ETH_ADDR.test(address)) return notConfigured;
+  if (!ETH_ADDR.test(usdc) || usdc === ZERO) return notConfigured;
 
   try {
-    const client = createPublicClient({ chain: arcChain, transport: http(ARC.rpcUrl) });
+    const client = createPublicClient({
+      chain: arcChain,
+      transport: http(ARC.rpcUrl, { timeout: 10_000 }),
+    });
     let decimals = 6;
     try {
       decimals = Number(
@@ -79,6 +85,6 @@ export async function getUsdcBalance(address: string): Promise<BalanceResult> {
       configured: true,
     };
   } catch {
-    return base;
+    return rpcFail;
   }
 }
