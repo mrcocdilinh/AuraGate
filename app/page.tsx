@@ -38,10 +38,10 @@ export default async function Home() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/services" className="btn-primary w-full sm:w-auto">
-              Browse the registry
+              Browse the marketplace
             </Link>
-            <Link href="/playground" className="btn-ghost w-full sm:w-auto">
-              Watch an agent pay →
+            <Link href="/docs" className="btn-ghost w-full sm:w-auto">
+              How to buy &amp; sell →
             </Link>
           </div>
           <p className="mt-4 text-xs text-muted">

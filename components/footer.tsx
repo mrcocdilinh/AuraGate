@@ -17,16 +17,17 @@ export function Footer() {
         <FooterCol
           title="Product"
           links={[
-            ["Registry", "/services"],
-            ["Sellers", "/sellers"],
+            ["Marketplace", "/services"],
+            ["Top sellers", "/sellers"],
             ["Seller dashboard", "/dashboard"],
             ["Receipt explorer", "/receipts"],
-            ["Agent playground", "/playground"],
+            ["Live demo", "/playground"],
           ]}
         />
         <FooterCol
           title="For agents"
           links={[
+            ["Docs — buy & list", "/docs"],
             ["Catalog (/api/agent)", "/api/agent"],
             ["Sellers API", "/api/sellers"],
             ["Receipts API", "/api/receipts"],

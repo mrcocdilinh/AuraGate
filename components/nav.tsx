@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/sellers", label: "Top sellers", icon: "🏆", hint: "Reputation leaderboard" },
   { href: "/receipts", label: "Receipts", icon: "🧾", hint: "On-chain payment proof" },
   { href: "/playground", label: "Live demo", icon: "▶️", hint: "Watch an agent pay" },
+  { href: "/docs", label: "Docs", icon: "📖", hint: "How to buy & list APIs" },
 ];
 
 export function Nav() {
