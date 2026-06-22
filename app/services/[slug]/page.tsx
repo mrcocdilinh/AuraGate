@@ -6,6 +6,7 @@ import { getService, listReceipts } from "@/lib/store";
 import { usd } from "@/lib/format";
 import { CategoryPill, Stars, VerifiedBadge, CopyButton } from "@/components/ui";
 import { TryService } from "./try-service";
+import { BuyWithWallet } from "@/components/buy-with-wallet";
 
 export const dynamic = "force-dynamic";
 
@@ -151,9 +152,23 @@ curl -X ${service.method} ${callUrl} \\
               <span className="truncate font-mono">{service.endpoint}</span>
               <CopyButton text={callUrl} />
             </div>
+            {/* Simulated demo — no real USDC */}
             <TryService
               endpoint={service.endpoint}
               method={service.method}
+              price={service.price}
+              external={Boolean(service.externalUrl)}
+            />
+
+            <div className="my-3 flex items-center gap-2 text-[11px] text-muted">
+              <span className="h-px flex-1 bg-line" />
+              or pay with real USDC
+              <span className="h-px flex-1 bg-line" />
+            </div>
+
+            {/* Real Circle wallet payment */}
+            <BuyWithWallet
+              slug={service.slug}
               price={service.price}
               external={Boolean(service.externalUrl)}
             />
