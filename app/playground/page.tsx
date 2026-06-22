@@ -34,7 +34,7 @@ export default function PlaygroundPage() {
     push({ kind: "info", text: `Agent starting — payer: ${payerAddress?.slice(0, 10)}…` });
     push({ kind: "info", text: "Reading AuraGate catalog at /api/agent…" });
 
-    let manifest: { services?: Array<{ id: string; name: string; url: string; price: { amount: string } }> };
+    let manifest: { services?: Array<{ id: string; name: string; url: string; method: string; price: { amount: string } }> };
     try {
       manifest = await fetch("/api/agent").then((r) => r.json());
     } catch {
@@ -53,15 +53,22 @@ export default function PlaygroundPage() {
         continue;
       }
 
-      const r1 = await fetch(s.url, { method: "GET" });
+      const method = (s.method ?? "GET").toUpperCase();
+      const isPost = method === "POST";
+      const postBody = isPost ? JSON.stringify({ text: "AuraGate is a permissionless marketplace where AI agents pay USDC per request using the x402 protocol on Arc testnet." }) : undefined;
+      const postHeaders = isPost ? { "content-type": "application/json" } : {};
+
+      const r1 = await fetch(s.url, { method });
       push({ kind: "402", text: `${s.name}: ${r1.status} Payment Required (${usd(price)})` });
 
       const r2 = await fetch(s.url, {
-        method: "GET",
+        method,
         headers: {
+          ...postHeaders,
           "x-payment": btoa(JSON.stringify({ amount: s.price.amount, payer: payerAddress })),
           "x-payer": payerAddress ?? "",
         },
+        ...(isPost ? { body: postBody } : {}),
       });
 
       if (!r2.ok) {

@@ -50,10 +50,16 @@ export type X402Outcome =
   | { kind: "challenge"; response: Response }
   | { kind: "paid"; payment: PaymentResult; responseHeaders?: Record<string, string> };
 
+const DEMO_PAYERS = [
+  "0xDemoAgent0000000000000000000000000000001", // playground browser agent
+  "0xA9e7000000000000000000000000000000000Bob", // headless agent mock mode
+];
+
 /**
  * Process an x402 payment.
  *
  * Mock mode accepts any `x-payment`/`payment-signature` header (no funds move).
+ * Known demo payer addresses also use mock flow even in live mode (playground demo).
  * Live mode runs Circle's Gateway `require()` middleware — which emits the
  * `PAYMENT-REQUIRED` header the Gateway buyer client expects, then verifies +
  * settles real USDC on Arc — adapted from Express (req/res) to App Router.
@@ -63,7 +69,10 @@ export async function processPayment(
   price: string,
   payTo = SELLER_ADDRESS
 ): Promise<X402Outcome> {
-  if (MODE !== "live") {
+  const xPayer = req.headers.get("x-payer") ?? "";
+  const isDemo = MODE !== "live" || DEMO_PAYERS.some((d) => d.toLowerCase() === xPayer.toLowerCase());
+
+  if (isDemo) {
     const header =
       req.headers.get("payment-signature") ?? req.headers.get("x-payment");
     if (!header) {
@@ -72,9 +81,7 @@ export async function processPayment(
         response: Response.json(buildChallenge(price, payTo), { status: 402 }),
       };
     }
-    const payer =
-      req.headers.get("x-payer") ??
-      "0xA9e7000000000000000000000000000000000Bob";
+    const payer = xPayer || "0xA9e7000000000000000000000000000000000Bob";
     return {
       kind: "paid",
       payment: { paid: true, payer, amount: price, network: ARC.caip2 },
