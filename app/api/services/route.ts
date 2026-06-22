@@ -7,6 +7,7 @@ import {
   deleteService,
 } from "@/lib/store";
 import type { ServiceCategory } from "@/lib/types";
+import { probeX402Endpoint } from "@/lib/x402-probe";
 
 export const dynamic = "force-dynamic";
 
@@ -20,25 +21,6 @@ const CATEGORIES: ServiceCategory[] = [
 
 export async function GET() {
   return NextResponse.json({ services: await listServices() });
-}
-
-/**
- * Probe a seller-hosted endpoint for a valid x402 challenge. A compliant
- * endpoint replies HTTP 402 when called without payment — that's the
- * verification signal we surface as a "verified" badge.
- */
-async function probeVerified(url: string, method: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, {
-      method,
-      signal: AbortSignal.timeout(3500),
-      headers: method === "POST" ? { "content-type": "application/json" } : {},
-      ...(method === "POST" ? { body: "{}" } : {}),
-    });
-    return res.status === 402;
-  } catch {
-    return false;
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -100,8 +82,12 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // For seller-hosted endpoints, verify the x402 challenge live.
-  const verified = externalUrl ? await probeVerified(externalUrl, method) : true;
+  // For seller-hosted endpoints, validate the x402 challenge live. We surface
+  // the full diagnostic so the seller learns *why* it didn't verify.
+  const probe = externalUrl
+    ? await probeX402Endpoint(externalUrl, method, String(priceNum))
+    : null;
+  const verified = probe ? probe.ok : true;
 
   const svc = await addService({
     slug,
@@ -120,7 +106,7 @@ export async function POST(req: NextRequest) {
     sampleResponse,
   });
 
-  return NextResponse.json({ service: svc }, { status: 201 });
+  return NextResponse.json({ service: svc, probe }, { status: 201 });
 }
 
 /** Deactivate / reactivate a service. Body: { slug, sellerAddress, active }. */

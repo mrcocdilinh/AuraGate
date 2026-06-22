@@ -74,6 +74,39 @@ for (const s of catalog.services) {
   spent += Number(s.price.amount);
 }`;
 
+  const endpointExample = `// A valid x402 endpoint, in any framework. Called WITHOUT payment it must
+// return 402 with this JSON challenge; once paid, return your data (200).
+// Example: Next.js route / Express handler / any HTTP server.
+
+export async function GET(req) {
+  const payment = req.headers.get("x-payment");
+
+  // 1) No payment yet → reply 402 with the challenge AuraGate health-checks.
+  if (!payment) {
+    return Response.json({
+      x402Version: 2,
+      accepts: [{
+        scheme: "exact",
+        network: "eip155:5042002",              // Arc testnet
+        asset: "0x<USDC-contract-on-Arc>",      // USDC on Arc
+        amount: "2000",                          // atomic USDC (6 dp) → $0.002
+        payTo: "0xYourWalletAddress",            // where the USDC lands
+        maxTimeoutSeconds: 60
+      }],
+      error: "Payment required"
+    }, { status: 402 });
+  }
+
+  // 2) Payment present → verify+settle, then return your data.
+  return Response.json({ city: "Hanoi", temperatureC: 31 });
+}`;
+
+  const probeCurl = `# Check your endpoint is x402-compliant BEFORE listing it.
+curl -X POST ${base}/api/services/probe \\
+  -H "Content-Type: application/json" \\
+  -d '{ "url": "https://my-api.com/x402/weather", "method": "GET", "price": "0.002" }'
+# → { "ok": true, "summary": "Valid x402 endpoint ✓", "checks": [ … ] }`;
+
   const registerCurl = `curl -X POST ${base}/api/services \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -184,10 +217,33 @@ for (const s of catalog.services) {
           ))}
         </div>
 
+        <h3 className="mt-6 font-semibold">What makes a valid x402 endpoint?</h3>
+        <p className="mt-1 text-sm text-muted">
+          When called <strong className="text-ink">without payment</strong>, your URL must
+          reply <code className="text-ink">402</code> with a JSON challenge whose{" "}
+          <code className="text-ink">accepts</code> array says how to pay —{" "}
+          <code className="text-ink">amount</code> (atomic USDC),{" "}
+          <code className="text-ink">payTo</code> (your wallet), plus{" "}
+          <code className="text-ink">scheme</code>/<code className="text-ink">network</code>/
+          <code className="text-ink">asset</code>. After the buyer pays, return your data with{" "}
+          <code className="text-ink">200</code>. AuraGate health-checks exactly this at registration.
+        </p>
+        <Code code={endpointExample} label="x402 endpoint" />
+
+        <h3 className="mt-6 font-semibold">Test before you list</h3>
+        <p className="mt-1 text-sm text-muted">
+          Use the <strong className="text-ink">Test endpoint</strong> button on the{" "}
+          <Link href="/dashboard" className="text-primary hover:underline">dashboard</Link>, or POST to{" "}
+          <code className="text-ink">/api/services/probe</code>. You get a checklist of exactly
+          what passes and what to fix — no guessing.
+        </p>
+        <Code code={probeCurl} label="test endpoint" />
+
         <h3 className="mt-6 font-semibold">Option A — The dashboard form (easiest)</h3>
         <p className="mt-1 text-sm text-muted">
           Go to the <Link href="/dashboard" className="text-primary hover:underline">Seller dashboard</Link>,
-          fill in the “Register a service” form (name, price, your wallet, endpoint URL, sample response) and submit.
+          fill in the “List a service” form, click <strong className="text-ink">Test endpoint</strong> to
+          verify your URL, then submit. Leave the URL blank to get a free hosted demo endpoint instead.
         </p>
 
         <h3 className="mt-6 font-semibold">Option B — Register via API</h3>
