@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   // Produce the live data (falls back to sample on upstream failure).
   const syntheticReq = new Request(`${req.nextUrl.origin}/api/premium/${pending.slug}`) as Parameters<typeof produceServiceData>[1];
   const data = await produceServiceData(pending.slug, syntheticReq, service.sampleResponse);
-  const hash = resultHash(JSON.stringify(data));
+  const hash = resultHash(data);
   const reqHash = requestHash({
     method: "GET",
     url: syntheticReq.url,

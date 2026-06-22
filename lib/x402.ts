@@ -76,7 +76,12 @@ export async function processPayment(
 ): Promise<X402Outcome> {
   const xPayer = req.headers.get("x-payer") ?? "";
   const knownDemoPayer = DEMO_PAYERS.some((d) => d.toLowerCase() === xPayer.toLowerCase());
-  const isDemo = MODE !== "live" || (ALLOW_LIVE_DEMO_PAYERS && knownDemoPayer);
+  // Always allow recognised demo payers on testnet (they carry no real funds and
+  // will never pass Circle's live signature check anyway). On mainnet, require
+  // the explicit ALLOW_DEMO_PAYERS_IN_LIVE=true opt-in.
+  const isDemo =
+    MODE !== "live" ||
+    (knownDemoPayer && (NETWORK_MODE !== "mainnet" || ALLOW_LIVE_DEMO_PAYERS));
 
   if (isDemo) {
     const header =
