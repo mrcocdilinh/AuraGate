@@ -1,7 +1,7 @@
 import type { Service } from "./types";
 
 // All demo sellers settle to this address (a registered Circle Gateway account).
-const SELLER = "0x89100844705F50e9566386B908059B27041804D0";
+const SELLER = "0xB52D1D41DAf8c87c8709bc79be41c4C424aD36F1";
 
 // Helper to keep the seed terse and consistent.
 function svc(s: Omit<Service, "sellerAddress" | "endpoint" | "active"> & { endpoint?: string }): Service {
