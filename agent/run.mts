@@ -9,7 +9,9 @@ config({ path: ".env.local" });
 config();
 
 const TARGET = process.env.AGENT_TARGET_URL ?? "http://localhost:3000";
-const MODE = (process.env.X402_MODE ?? "mock").toLowerCase();
+// `--live` forces real x402 + Circle Gateway settlement without editing env.
+const FORCE_LIVE = process.argv.includes("--live");
+const MODE = FORCE_LIVE ? "live" : (process.env.X402_MODE ?? "mock").toLowerCase();
 const PK = process.env.BUYER_PRIVATE_KEY ?? "";
 
 function arg(name: string, fallback: string): string {
