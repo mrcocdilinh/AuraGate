@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { WalletProvider } from "@/components/wallet-provider";
+import { ReownProvider } from "@/components/reown-provider";
 import { Nav } from "@/components/nav";
 import { Footer } from "@/components/footer";
 import { TestnetBanner } from "@/components/testnet-banner";
@@ -42,12 +43,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen font-sans">
-        <WalletProvider>
-          <TestnetBanner />
-          <Nav />
-          <main>{children}</main>
-          <Footer />
-        </WalletProvider>
+        <ReownProvider>
+          <WalletProvider>
+            <TestnetBanner />
+            <Nav />
+            <main>{children}</main>
+            <Footer />
+          </WalletProvider>
+        </ReownProvider>
       </body>
     </html>
   );

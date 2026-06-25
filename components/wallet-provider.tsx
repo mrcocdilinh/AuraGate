@@ -39,6 +39,7 @@ interface WalletState {
 interface WalletCtx extends WalletState {
   loginWithEmail: (email: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginWithExternalWallet: (address: string) => void;
   logout: () => void;
 }
 
@@ -266,13 +267,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loginWithExternalWallet = useCallback((address: string) => {
+    persist({
+      status: "connected",
+      address,
+      method: "external" as LoginMethod,
+      demo: false,
+    });
+  }, []);
+
   const logout = useCallback(() => {
     clearSessionCreds();
     persist({ status: "disconnected", demo: !circleReady() });
   }, []);
 
   return (
-    <Ctx.Provider value={{ ...state, loginWithEmail, loginWithGoogle, logout }}>
+    <Ctx.Provider value={{ ...state, loginWithEmail, loginWithGoogle, loginWithExternalWallet, logout }}>
       {children}
     </Ctx.Provider>
   );

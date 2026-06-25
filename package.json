@@ -23,13 +23,17 @@
     "@circle-fin/user-controlled-wallets": "^10.6.0",
     "@circle-fin/w3s-pw-web-sdk": "^1.1.11",
     "@circle-fin/x402-batching": "^3.2.0",
+    "@reown/appkit": "^1.8.21",
+    "@reown/appkit-adapter-wagmi": "^1.8.21",
     "@supabase/supabase-js": "^2.108.2",
+    "@tanstack/react-query": "^5.101.1",
     "@x402/core": "^2.15.0",
     "@x402/evm": "^2.3.0",
     "next": "^16.2.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "viem": "^2.23.7"
+    "viem": "^2.23.7",
+    "wagmi": "^3.6.20"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

@@ -4,7 +4,7 @@
  * in one place so both entry points produce an identical connected wallet.
  */
 
-export type LoginMethod = "email" | "google";
+export type LoginMethod = "email" | "google" | "external";
 
 export interface StoredWallet {
   status: "connected";
