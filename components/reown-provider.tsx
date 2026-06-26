@@ -8,9 +8,9 @@ import { useEffect } from "react";
 const queryClient = new QueryClient();
 
 export function ReownProvider({ children }: { children: React.ReactNode }) {
-  // Initialize AppKit lazily on the client only
+  // Initialize AppKit lazily on the client — dynamic import keeps AppKit off server bundle
   useEffect(() => {
-    import("@/lib/reown").then(({ getModal }) => getModal());
+    import("@/lib/reown").then(({ getModal }) => { getModal(); });
   }, []);
 
   return (

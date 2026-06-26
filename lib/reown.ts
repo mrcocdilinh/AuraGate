@@ -1,6 +1,5 @@
 import { defineChain } from "viem";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
-import { createAppKit } from "@reown/appkit/react";
 
 export const arcTestnet = defineChain({
   id: 5042002,
@@ -31,36 +30,37 @@ const EVE_WALLET = {
   desktop_link: "https://evewallet.xyz",
 };
 
-let _modal: ReturnType<typeof createAppKit> | null = null;
+let _modal: unknown = null;
 
-export function getModal() {
+export async function getModal() {
   if (typeof window === "undefined") return null;
-  if (!_modal) {
-    _modal = createAppKit({
-      adapters: [wagmiAdapter],
-      networks: [arcTestnet],
-      projectId: PROJECT_ID,
-      metadata: {
-        name: "AuraGate",
-        description: "Payment marketplace for AI agents on Arc",
-        url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://auragate.app",
-        icons: ["https://auragate.app/icon-192.png"],
-      },
-      customWallets: [EVE_WALLET],
-      features: {
-        email: false,
-        socials: [],
-        analytics: false,
-      },
-      themeMode: "dark",
-      themeVariables: {
-        "--w3m-accent": "#3E73FF",
-        "--w3m-border-radius-master": "12px",
-        "--w3m-color-mix": "#030A18",
-        "--w3m-color-mix-strength": 40,
-        "--w3m-font-size-master": "13px",
-      },
-    });
-  }
+  if (_modal) return _modal;
+  // Dynamic import keeps @reown/appkit/react out of the server bundle
+  const { createAppKit } = await import("@reown/appkit/react");
+  _modal = createAppKit({
+    adapters: [wagmiAdapter],
+    networks: [arcTestnet],
+    projectId: PROJECT_ID,
+    metadata: {
+      name: "AuraGate",
+      description: "Payment marketplace for AI agents on Arc",
+      url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://auragate.app",
+      icons: ["https://auragate.app/icon-192.png"],
+    },
+    customWallets: [EVE_WALLET],
+    features: {
+      email: false,
+      socials: [],
+      analytics: false,
+    },
+    themeMode: "dark",
+    themeVariables: {
+      "--w3m-accent": "#3E73FF",
+      "--w3m-border-radius-master": "12px",
+      "--w3m-color-mix": "#030A18",
+      "--w3m-color-mix-strength": 40,
+      "--w3m-font-size-master": "13px",
+    },
+  });
   return _modal;
 }

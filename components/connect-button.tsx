@@ -34,7 +34,8 @@ export function ConnectButton() {
   const openCryptoWallet = useCallback(async () => {
     setOpen(false);
     const { getModal } = await import("@/lib/reown");
-    getModal()?.open();
+    const modal = await getModal();
+    (modal as any)?.open();
   }, []);
 
   if (w.status === "connected") {
